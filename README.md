@@ -1,6 +1,6 @@
 # jmprof
 
-A tiny memory profiler for GNU/Linux.
+A tiny heap profiler for GNU/Linux.
 
 ## Prerequisites
 

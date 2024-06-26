@@ -84,7 +84,14 @@ ${TARGETS}: ${OBJECTS}
 post-build:
 	@printf "${PROJECT_PREFIX} Build complete.\n"
 
-install:
+superuser:
+	@if [ "$(shell id -u)" -ne 0 ]; then                       \
+		printf "${PROJECT_PREFIX} You must be superuser to ";  \
+		printf "install or uninstall this library.\n";         \
+		exit 1;                                                \
+	fi
+
+install: superuser
 	@printf "${PROJECT_PREFIX} Installing: "
 	@printf "${PREFIX}/${BINARY_PATH}/${PROJECT_NAME}\n"
 	@install -m755 ${BINARY_PATH}/${PROJECT_NAME} \
@@ -92,7 +99,7 @@ install:
 	@printf "${PROJECT_PREFIX} Installing: ${PREFIX}/${TARGETS}\n"
 	@install -m644 ${TARGETS} ${PREFIX}/${TARGETS}
 
-uninstall:
+uninstall: superuser
 	@printf "${PROJECT_PREFIX} Uninstalling: ${PREFIX}/bin/${PROJECT_NAME}\n"
 	@rm -f ${PREFIX}/bin/${PROJECT_NAME}
 	@printf "${PROJECT_PREFIX} Uninstalling: ${PREFIX}/${TARGETS}\n"
