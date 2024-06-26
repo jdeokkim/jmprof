@@ -2,15 +2,25 @@
 
 A tiny heap profiler for GNU/Linux.
 
+## Summary
+
+### Preloading
+
+- The dynamic linker (`ld.so`, `ld-linux.so*`) find and load the shared objects (shared libraries) needed by a program, prepare the program to run, and then run it. 
+- There is an important environment variable for the dynamic linker called `LD_PRELOAD`, which is a list of additional, user-specified, shared libraries **to be loaded before all others.**
+- We can leverage `LD_PRELOAD` to inject custom library code into any applications, allowing us to intercept the `*libc` function calls.
+
 ## Prerequisites
 
 - GCC version 11.4.0+
 - Git version 2.34.0+
-- GNU Make version 4.3+
+- GNU coreutils version 8.3+
+- GNU Make version 4.2+
 
 ## Building
 
 ```console
+$ make && sudo make install
 ```
 
 ## References

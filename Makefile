@@ -60,7 +60,7 @@ CC = cc
 CFLAGS = -D_DEFAULT_SOURCE -fPIC -g -I${INCLUDE_PATH} -O2 -std=gnu99
 LDFLAGS = -shared
 
-CFLAGS += -Wall -Wpedantic -Wno-unused-but-set-variable -Wno-unused-value \
+CFLAGS += -Wall -Wno-unused-but-set-variable -Wno-unused-value \
 	-Wno-unused-variable
 
 # ============================================================================>
@@ -97,7 +97,7 @@ install: superuser
 	@install -m755 ${BINARY_PATH}/${PROJECT_NAME} \
 		${PREFIX}/${BINARY_PATH}/${PROJECT_NAME}
 	@printf "${PROJECT_PREFIX} Installing: ${PREFIX}/${TARGETS}\n"
-	@install -m644 ${TARGETS} ${PREFIX}/${TARGETS}
+	@install -m644 ${TARGETS} ${PREFIX}/${TARGETS} && ldconfig
 
 uninstall: superuser
 	@printf "${PROJECT_PREFIX} Uninstalling: ${PREFIX}/bin/${PROJECT_NAME}\n"
@@ -108,4 +108,3 @@ uninstall: superuser
 clean:
 	@printf "${PROJECT_PREFIX} Cleaning up.\n"
 	@rm -f ${LIBRARY_PATH}/*.so ${SOURCE_PATH}/*.o
-

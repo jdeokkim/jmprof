@@ -22,8 +22,69 @@
 # SOFTWARE.
 #
 
+# Constants ==================================================================>
+
+readonly argv_0=$(basename $0);
+readonly argc=$#;
+
+readonly preload="libjmprof.so";
+
+readonly version="0.0.1";
+readonly website="https://github.com/jdeokkim/jmprof";
+
+# Function Definitions =======================================================>
+
+# Shows the 'help' message and terminates this program.
+usage() {
+    printf "Usage: %s [-h] [-v]\n\n" $argv_0;
+
+    printf "    -h  shows this 'help' message and exit\n";
+    printf "    -v  displays version information\n";
+
+    exit 1;
+}
+
+# Displays the version information for this program.
+version() {
+    printf "%s v%s (%s)\n" $argv_0 $version $website;
+
+    exit 0;
+}
+
 # Entry Point ================================================================>
 
-# TODO: ...
+while getopts ":hv" opt; do
+    case "$opt" in
+        h)
+            usage;
+
+            ;;
+
+        v)
+            version;
+
+            ;;
+
+        :)
+            printf "%s: option '-%s' " $argv_0 $OPTARG;
+            printf "requires an argument\n";
+
+            usage;
+
+            ;;
+
+        \?)
+            printf "%s: option '-%s' " $argv_0 $OPTARG;
+            printf "is invalid\n";
+
+            usage;
+
+            ;;
+    esac
+done
+
+# ============================================================================>
+
+LD_PRELOAD="$(ldconfig -p | grep $preload | awk -F ' ' '{ print $4 }')" $@;
 
 # ============================================================================>

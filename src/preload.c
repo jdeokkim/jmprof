@@ -20,10 +20,40 @@
     DEALINGS IN THE SOFTWARE.
 */
 
-/* Includes ================================================================ */
+/* Includes ===============================================================> */
 
-// TODO: ...
+#define _GNU_SOURCE
 
-/* Public Functions ======================================================== */
+#include <assert.h>
+#include <stddef.h>
+#include <dlfcn.h>
+#include <unistd.h>
 
-// TODO: ...
+/* Typedefs ===============================================================> */
+
+typedef void *(libc_malloc_t)(size_t);
+
+/* Private Variables ======================================================> */
+
+static libc_malloc_t *libc_malloc;
+
+/* Public Functions =======================================================> */
+
+void *malloc(size_t size) {
+    void *libc_malloc_ptr = dlsym(RTLD_NEXT, "malloc");
+
+    libc_malloc = libc_malloc_ptr;
+
+    assert(libc_malloc != NULL);
+
+    {
+        // TODO: ...
+        write(
+            STDERR_FILENO, 
+            "write(): intercepted malloc()\n", 
+            sizeof "write(): intercepted malloc()\n"
+        );
+    }
+
+    return libc_malloc(size);
+}
