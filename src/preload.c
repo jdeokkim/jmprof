@@ -33,28 +33,28 @@
 
 /* Typedefs ===============================================================> */
 
-typedef void *(libc_aligned_alloc_t)(size_t alignment, size_t size);
-typedef void *(libc_calloc_t)(size_t num, size_t size);
-typedef void *(libc_malloc_t)(size_t size);
-typedef void *(libc_realloc_t)(void *ptr, size_t new_size);
+typedef void *(jm_libc_aligned_alloc_t)(size_t alignment, size_t size);
+typedef void *(jm_libc_calloc_t)(size_t num, size_t size);
+typedef void *(jm_libc_malloc_t)(size_t size);
+typedef void *(jm_libc_realloc_t)(void *ptr, size_t new_size);
 
-typedef void (libc_free_t)(void *ptr);
+typedef void (jm_libc_free_t)(void *ptr);
 
-typedef void *(posix_mmap_t)(void *addr, size_t len, int prot, 
+typedef void *(jm_posix_mmap_t)(void *addr, size_t len, int prot, 
     int flags, int fildes, off_t off);
-typedef void *(posix_sbrk_t)(intptr_t incr);
+typedef void *(jm_posix_sbrk_t)(intptr_t incr);
 
 /* Private Variables ======================================================> */
 
-static libc_aligned_alloc_t *libc_aligned_alloc;
-static libc_calloc_t *libc_calloc;
-static libc_malloc_t *libc_malloc;
-static libc_realloc_t *libc_realloc;
+static jm_libc_aligned_alloc_t *libc_aligned_alloc;
+static jm_libc_calloc_t *libc_calloc;
+static jm_libc_malloc_t *libc_malloc;
+static jm_libc_realloc_t *libc_realloc;
 
-static libc_free_t *libc_free;
+static jm_libc_free_t *libc_free;
 
-static posix_mmap_t *posix_mmap;
-static posix_sbrk_t *posix_sbrk;
+static jm_posix_mmap_t *posix_mmap;
+static jm_posix_sbrk_t *posix_sbrk;
 
 /* Public Functions =======================================================> */
 
@@ -66,26 +66,49 @@ void *aligned_alloc(size_t alignment, size_t size) {
 
     assert(libc_aligned_alloc != NULL);
 
+    void *result = libc_aligned_alloc(alignment, size);
+
     {
         // TODO: ...
+        REENTRANT_PRINTF(
+            "jmprof: intercepted %s() at %p\n", 
+            __func__, result
+        );
     }
 
-    return libc_aligned_alloc(alignment, size);
+    return result;
 }
 
 void *calloc(size_t num, size_t size) {
+    /*
+        NOTE: In GNU C Library ('glibc'), `dlsym()` calls `calloc()`, 
+        which will lead to an infinite recursion!
+    */
+
+#ifdef __GLIBC__
+    extern void *__libc_calloc();
+
+    void *libc_calloc_ptr = __libc_calloc;
+#else
     void *libc_calloc_ptr = dlsym(RTLD_NEXT, "calloc");
+#endif
 
     if (libc_calloc == NULL)
         libc_calloc = libc_calloc_ptr;
 
     assert(libc_calloc != NULL);
 
+    void *result = libc_calloc(num, size);
+
     {
         // TODO: ...
+        REENTRANT_PRINTF(
+            "jmprof: intercepted %s() at %p\n", 
+            __func__, result
+        );
     }
 
-    return libc_calloc(num, size);
+    return result;
 }
 
 void *malloc(size_t size) {
@@ -96,11 +119,19 @@ void *malloc(size_t size) {
 
     assert(libc_malloc != NULL);
 
+    void *result = libc_malloc(size);
+
     {
         // TODO: ...
+        REENTRANT_PRINTF(
+            "jmprof: intercepted %s() at %p\n", 
+            __func__, result
+        );
+
+        // jm_print_backtrace();
     }
 
-    return libc_malloc(size);
+    return result;
 }
 
 void *realloc(void *ptr, size_t new_size) {
@@ -111,11 +142,17 @@ void *realloc(void *ptr, size_t new_size) {
 
     assert(libc_realloc != NULL);
 
+    void *result = libc_realloc(ptr, new_size);
+
     {
         // TODO: ...
+        REENTRANT_PRINTF(
+            "jmprof: intercepted %s() at %p\n", 
+            __func__, result
+        );
     }
 
-    return libc_realloc(ptr, new_size);
+    return result;
 }
 
 void free(void *ptr) {
@@ -125,10 +162,6 @@ void free(void *ptr) {
         libc_free = libc_free_ptr;
 
     assert(libc_free != NULL);
-
-    {
-        // TODO: ...
-    }
 
     return libc_free(ptr);
 }

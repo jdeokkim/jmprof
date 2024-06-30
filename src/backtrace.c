@@ -20,30 +20,26 @@
     DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef JMPROF_H
-#define JMPROF_H
-
 /* Includes ===============================================================> */
 
-#include "printf.h"
+#define UNW_LOCAL_ONLY
+#include <libunwind.h>
+
+#include "jmprof.h"
 
 /* Macros =================================================================> */
 
-// clang-format off
+#define MAX_BACKTRACE_COUNT  32
 
-#define REENTRANT_PRINTF     printf_
-#define REENTRANT_VPRINTF    vprintf_
-#define REENTRANT_SPRINTF    sprintf_
-#define REENTRANT_VSPRINTF   vsprintf_
-#define REENTRANT_SNPRINTF   snprintf_
-#define REENTRANT_VSNPRINTF  vsnprintf_
+/* Public Functions =======================================================> */
 
-// clang-format on
+void jm_print_backtrace(void) {
+    void *traces[MAX_BACKTRACE_COUNT];
 
-/* Public Function Prototypes =============================================> */
+    int size = unw_backtrace(traces, MAX_BACKTRACE_COUNT);
 
-/* (from src/backtrace.c) =================================================> */
+    REENTRANT_PRINTF("%d\n", size);
 
-void jm_print_backtrace(void);
-
-#endif // `JMPROF_H`
+    for (int i = 0; i < size; i++)
+        REENTRANT_PRINTF("  at %p\n", traces[i]);
+}

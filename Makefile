@@ -48,7 +48,8 @@ LIBRARY_PATH = lib
 SOURCE_PATH = src
 
 OBJECTS = \
-	${SOURCE_PATH}/preload.o \
+	${SOURCE_PATH}/backtrace.o  \
+	${SOURCE_PATH}/preload.o    \
 	${SOURCE_PATH}/printf.o
 
 TARGETS = ${LIBRARY_PATH}/lib${PROJECT_NAME}.so

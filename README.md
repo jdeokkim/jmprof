@@ -10,12 +10,19 @@ A tiny heap profiler for GNU/Linux.
 - There is an important environment variable for the dynamic linker called `LD_PRELOAD`, which is a list of additional, user-specified, shared libraries **to be loaded before all others.**
 - We can leverage `LD_PRELOAD` to inject custom library code into any applications, allowing us to intercept the `*libc` function calls.
 
+## Stack Unwinding
+
+- We need to **unwind** the stack to get a backtrace.
+- In order to unwind the stack from within a running program (**local** unwinding), we can use `libunwind` with the macro `UNW_LOCAL_ONLY` defined.
+
 ## Prerequisites
 
 - GCC version 11.4.0+
 - Git version 2.34.0+
+- GNU binutils version 2.0+
 - GNU coreutils version 8.3+
 - GNU Make version 4.2+
+- libunwind-dev(el) version 1.8.1+ 
 
 ## Building
 
@@ -27,6 +34,7 @@ $ make && sudo make install
 
 - [Nethercote, Nicholas & Seward, Julian. “How to Shadow Every Byte of Memory Used by a Program.” Third International ACM SIGPLAN/SIGOPS Conference on Virtual Execution Environments, San Diego, California, USA. June 13-15, 2007.](https://valgrind.org/docs/shadow-memory2007.pdf)
 - [Nethercote, Nicholas & Seward, Julian. “Valgrind: A Framework for Heavyweight Dynamic Binary Instrumentation.” ACM SIGPLAN 2007 Conference on Programming Language Design and Implementation, San Diego, California, USA. June 13-15, 2007.](https://valgrind.org/docs/valgrind2007.pdf)
+- [Picard, Romain. “`LD_PRELOAD` for real world heap access tracking.” blog.oakbits.com. April 11, 2012.](https://blog.oakbits.com/ld_preload-for-real-world-heap-access-tracking.html)
 - [Wolff, Milian. “How to Write a Heap Profiler.” CppCon 2019, Aurora, Colorado, USA. September 15-20, 2019.](https://github.com/milianw/how-to-write-a-memory-profiler)
 
 ## License
