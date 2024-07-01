@@ -38,8 +38,6 @@ void jm_print_backtrace(void) {
 
     int size = unw_backtrace(traces, MAX_BACKTRACE_COUNT);
 
-    REENTRANT_PRINTF("%d\n", size);
-
     for (int i = 0; i < size; i++)
-        REENTRANT_PRINTF("  at %p\n", traces[i]);
+        REENTRANT_PRINTF("  %p\n", traces[i]);
 }

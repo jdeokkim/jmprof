@@ -27,6 +27,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <dlfcn.h>
+#include <pthread.h>
 #include <unistd.h>
 
 #include "jmprof.h"
@@ -42,7 +43,7 @@ typedef void (jm_libc_free_t)(void *ptr);
 
 /* typedef void *(jm_posix_mmap_t)(void *addr, size_t len, int prot, 
     int flags, int fildes, off_t off); */
-typedef void *(jm_posix_sbrk_t)(intptr_t incr);
+// typedef void *(jm_posix_sbrk_t)(intptr_t incr);
 
 /* Private Variables ======================================================> */
 
@@ -54,11 +55,127 @@ static jm_libc_realloc_t *libc_realloc;
 static jm_libc_free_t *libc_free;
 
 // static jm_posix_mmap_t *posix_mmap;
-static jm_posix_sbrk_t *posix_sbrk;
+// static jm_posix_sbrk_t *posix_sbrk;
+
+/* ========================================================================> */
+
+static pthread_once_t calloc_key_once = PTHREAD_ONCE_INIT;
+static pthread_once_t malloc_key_once = PTHREAD_ONCE_INIT;
+static pthread_once_t realloc_key_once = PTHREAD_ONCE_INIT;
+
+static pthread_once_t free_key_once = PTHREAD_ONCE_INIT;
+
+/* ========================================================================> */
+
+static pthread_key_t calloc_key;
+static pthread_key_t malloc_key;
+static pthread_key_t realloc_key;
+
+static pthread_key_t free_key;
+
+/* Private Function Prototypes ============================================> */
+
+static void calloc_init_once(void);
+static void malloc_init_once(void);
+static void realloc_init_once(void);
+
+static void free_init_once(void);
 
 /* Public Functions =======================================================> */
 
 void *calloc(size_t num, size_t size) {
+    if (libc_calloc == NULL)
+        (void) pthread_once(&calloc_key_once, calloc_init_once);
+
+    void *result = libc_calloc(num, size);
+
+    if ((pthread_getspecific(calloc_key)) == NULL) {
+        pthread_setspecific(calloc_key, &calloc_key);
+
+        // TODO: ...
+        REENTRANT_PRINTF(
+            "jmprof: intercepted %s() at %p\n", 
+            __func__, result
+        );
+
+        pthread_setspecific(calloc_key, NULL);
+    }
+
+    return result;
+}
+
+void *malloc(size_t size) {
+    if (libc_malloc == NULL)
+        (void) pthread_once(&malloc_key_once, malloc_init_once);
+
+    void *result = libc_malloc(size);
+
+    if ((pthread_getspecific(malloc_key)) == NULL) {
+        pthread_setspecific(malloc_key, &malloc_key);
+
+        // TODO: ...
+        REENTRANT_PRINTF(
+            "jmprof: intercepted %s() at %p\n", 
+            __func__, result
+        );
+
+        jm_print_backtrace();
+
+        pthread_setspecific(malloc_key, NULL);
+    }
+
+    return result;
+}
+
+void *realloc(void *ptr, size_t new_size) {
+    if (libc_realloc == NULL) 
+        (void) pthread_once(&realloc_key_once, realloc_init_once);
+
+    void *result = libc_realloc(ptr, new_size);
+
+    if ((pthread_getspecific(realloc_key)) == NULL) {
+        pthread_setspecific(realloc_key, &realloc_key);
+
+        if (ptr == NULL) {
+            // TODO: `malloc()`
+        } else if (new_size == 0) {
+            // TODO: `free()`
+        }
+
+        pthread_setspecific(realloc_key, NULL);
+    }
+
+    return result;
+}
+
+void free(void *ptr) {
+    if (libc_free == NULL)
+        (void) pthread_once(&free_key_once, free_init_once);
+
+    if ((pthread_getspecific(free_key)) == NULL) {
+        pthread_setspecific(free_key, &free_key);
+
+        if (ptr != NULL) {
+            // TODO: ...
+        }
+
+        pthread_setspecific(free_key, NULL);
+    }
+
+    return libc_free(ptr);
+}
+
+/* ========================================================================> */
+
+PRINTF_VISIBILITY void putchar_(char c) {
+    write(1, &c, 1);
+}
+
+/* Private Functions ======================================================> */
+
+static void calloc_init_once(void) {
+    pthread_key_create(&calloc_key, NULL);
+
 #ifdef __GLIBC__
     extern void *__libc_calloc(size_t num, size_t size);
 
@@ -67,98 +184,37 @@ void *calloc(size_t num, size_t size) {
     void *libc_calloc_ptr = dlsym(RTLD_NEXT, "calloc");
 #endif
 
-    if (libc_calloc == NULL)
-        libc_calloc = libc_calloc_ptr;
+    libc_calloc = libc_calloc_ptr;
 
     assert(libc_calloc != NULL);
-
-    void *result = libc_calloc(num, size);
-
-    {
-        // TODO: ...
-        REENTRANT_PRINTF(
-            "jmprof: intercepted %s() at %p\n", 
-            __func__, result
-        );
-    }
-
-    return result;
 }
 
-void *malloc(size_t size) {
+static void malloc_init_once(void) {
+    pthread_key_create(&malloc_key, NULL);
+
     void *libc_malloc_ptr = dlsym(RTLD_NEXT, "malloc");
 
-    if (libc_malloc == NULL)
-        libc_malloc = libc_malloc_ptr;
+    libc_malloc = libc_malloc_ptr;
 
     assert(libc_malloc != NULL);
-
-    void *result = libc_malloc(size);
-
-    {
-        // TODO: ...
-        REENTRANT_PRINTF(
-            "jmprof: intercepted %s() at %p\n", 
-            __func__, result
-        );
-
-        // jm_print_backtrace();
-    }
-
-    return result;
 }
 
-void *realloc(void *ptr, size_t new_size) {
+static void realloc_init_once(void) {
+    pthread_key_create(&realloc_key, NULL);
+
     void *libc_realloc_ptr = dlsym(RTLD_NEXT, "realloc");
 
-    if (libc_realloc == NULL)
-        libc_realloc = libc_realloc_ptr;
+    libc_realloc = libc_realloc_ptr;
 
     assert(libc_realloc != NULL);
-
-    void *result = libc_realloc(ptr, new_size);
-
-    {
-        // TODO: ...
-        REENTRANT_PRINTF(
-            "jmprof: intercepted %s() at %p\n", 
-            __func__, result
-        );
-    }
-
-    return result;
 }
 
-void free(void *ptr) {
+static void free_init_once(void) {
+    pthread_key_create(&free_key, NULL);
+
     void *libc_free_ptr = dlsym(RTLD_NEXT, "free");
 
-    if (libc_free == NULL)
-        libc_free = libc_free_ptr;
+    libc_free = libc_free_ptr;
 
     assert(libc_free != NULL);
-
-    return libc_free(ptr);
-}
-
-/* ========================================================================> */
-
-void *sbrk(intptr_t incr) {
-    void *posix_sbrk_ptr = dlsym(RTLD_NEXT, "sbrk");
-
-    if (posix_sbrk == NULL)
-        posix_sbrk = posix_sbrk_ptr;
-
-    assert(posix_sbrk != NULL);
-
-    {
-        // TODO: ...
-    }
-
-    return posix_sbrk(incr);
-}
-
-/* ========================================================================> */
-
-PRINTF_VISIBILITY void putchar_(char c) {
-    write(1, &c, 1);
 }
