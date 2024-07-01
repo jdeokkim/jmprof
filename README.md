@@ -9,6 +9,8 @@ A tiny heap profiler for GNU/Linux.
 - The dynamic linker (`ld.so`, `ld-linux.so*`) find and load the shared objects (shared libraries) needed by a program, prepare the program to run, and then run it. 
 - There is an important environment variable for the dynamic linker called `LD_PRELOAD`, which is a list of additional, user-specified, shared libraries **to be loaded before all others.**
 - We can leverage `LD_PRELOAD` to inject custom library code into any applications, allowing us to intercept the `*libc` function calls.
+- In GNU C Library (glibc), `dlsym()` internally calls `calloc()`, which will lead to an infinite recursion if we try to retrieve the address of `calloc()` with it. Therefore, we need to use `__libc_calloc()` as the address of `calloc()`.
+- 
 
 ## Stack Unwinding
 

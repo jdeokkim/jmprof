@@ -33,60 +33,34 @@
 
 /* Typedefs ===============================================================> */
 
-typedef void *(jm_libc_aligned_alloc_t)(size_t alignment, size_t size);
+// typedef void *(jm_libc_aligned_alloc_t)(size_t alignment, size_t size);
 typedef void *(jm_libc_calloc_t)(size_t num, size_t size);
 typedef void *(jm_libc_malloc_t)(size_t size);
 typedef void *(jm_libc_realloc_t)(void *ptr, size_t new_size);
 
 typedef void (jm_libc_free_t)(void *ptr);
 
-typedef void *(jm_posix_mmap_t)(void *addr, size_t len, int prot, 
-    int flags, int fildes, off_t off);
+/* typedef void *(jm_posix_mmap_t)(void *addr, size_t len, int prot, 
+    int flags, int fildes, off_t off); */
 typedef void *(jm_posix_sbrk_t)(intptr_t incr);
 
 /* Private Variables ======================================================> */
 
-static jm_libc_aligned_alloc_t *libc_aligned_alloc;
+// static jm_libc_aligned_alloc_t *libc_aligned_alloc;
 static jm_libc_calloc_t *libc_calloc;
 static jm_libc_malloc_t *libc_malloc;
 static jm_libc_realloc_t *libc_realloc;
 
 static jm_libc_free_t *libc_free;
 
-static jm_posix_mmap_t *posix_mmap;
+// static jm_posix_mmap_t *posix_mmap;
 static jm_posix_sbrk_t *posix_sbrk;
 
 /* Public Functions =======================================================> */
 
-void *aligned_alloc(size_t alignment, size_t size) {
-    void *libc_aligned_alloc_ptr = dlsym(RTLD_NEXT, "aligned_alloc");
-
-    if (libc_aligned_alloc == NULL)
-        libc_aligned_alloc = libc_aligned_alloc_ptr;
-
-    assert(libc_aligned_alloc != NULL);
-
-    void *result = libc_aligned_alloc(alignment, size);
-
-    {
-        // TODO: ...
-        REENTRANT_PRINTF(
-            "jmprof: intercepted %s() at %p\n", 
-            __func__, result
-        );
-    }
-
-    return result;
-}
-
 void *calloc(size_t num, size_t size) {
-    /*
-        NOTE: In GNU C Library ('glibc'), `dlsym()` calls `calloc()`, 
-        which will lead to an infinite recursion!
-    */
-
 #ifdef __GLIBC__
-    extern void *__libc_calloc();
+    extern void *__libc_calloc(size_t num, size_t size);
 
     void *libc_calloc_ptr = __libc_calloc;
 #else
@@ -167,22 +141,6 @@ void free(void *ptr) {
 }
 
 /* ========================================================================> */
-
-void *mmap(void *addr, size_t len, int prot, 
-    int flags, int fildes, off_t off) {
-    void *posix_mmap_ptr = dlsym(RTLD_NEXT, "mmap");
-
-    if (posix_mmap == NULL)
-        posix_mmap = posix_mmap_ptr;
-
-    assert(posix_mmap != NULL);
-
-    {
-        // TODO: ...
-    }
-
-    return posix_mmap(addr, len, prot, flags, fildes, off);
-}
 
 void *sbrk(intptr_t incr) {
     void *posix_sbrk_ptr = dlsym(RTLD_NEXT, "sbrk");
