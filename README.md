@@ -11,10 +11,14 @@ A tiny heap profiler for GNU/Linux.
 - We can leverage `LD_PRELOAD` to inject custom library code into any applications, allowing us to intercept the `*libc` function calls.
 - In GNU C Library (glibc), `dlsym()` internally calls `calloc()`, which will lead to an infinite recursion if we try to retrieve the address of `calloc()` with it. Therefore, we need to use `__libc_calloc()` as the address of `calloc()`.
 
-## Stack Unwinding
+### Stack Unwinding
 
 - We need to **unwind** the stack to get a backtrace.
 - In order to unwind the stack from within a running program (**local** unwinding), we can use `libunwind` with the macro `UNW_LOCAL_ONLY` defined.
+
+### Symbol Resolution
+
+// TODO: ...
 
 ## Prerequisites
 
@@ -23,7 +27,8 @@ A tiny heap profiler for GNU/Linux.
 - GNU binutils version 2.0+
 - GNU coreutils version 8.3+
 - GNU Make version 4.2+
-- libunwind-dev(el) version 1.8.1+ 
+- elfutils-dev(el) version 0.190+
+- libunwind-dev(el) version 1.8.1+
 
 ## Building
 

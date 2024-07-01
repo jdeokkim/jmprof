@@ -22,6 +22,8 @@
 
 /* Includes ===============================================================> */
 
+#include <elfutils/libdwfl.h>
+
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
 
