@@ -34,36 +34,19 @@
 
 /* Typedefs ===============================================================> */
 
-// typedef void *(jm_libc_aligned_alloc_t)(size_t alignment, size_t size);
 typedef void *(jm_libc_calloc_t)(size_t num, size_t size);
 typedef void *(jm_libc_malloc_t)(size_t size);
 typedef void *(jm_libc_realloc_t)(void *ptr, size_t new_size);
 
 typedef void (jm_libc_free_t)(void *ptr);
 
-/* typedef void *(jm_posix_mmap_t)(void *addr, size_t len, int prot, 
-    int flags, int fildes, off_t off); */
-// typedef void *(jm_posix_sbrk_t)(intptr_t incr);
-
 /* Private Variables ======================================================> */
 
-// static jm_libc_aligned_alloc_t *libc_aligned_alloc;
 static jm_libc_calloc_t *libc_calloc;
 static jm_libc_malloc_t *libc_malloc;
 static jm_libc_realloc_t *libc_realloc;
 
 static jm_libc_free_t *libc_free;
-
-// static jm_posix_mmap_t *posix_mmap;
-// static jm_posix_sbrk_t *posix_sbrk;
-
-/* ========================================================================> */
-
-static pthread_once_t calloc_key_once = PTHREAD_ONCE_INIT;
-static pthread_once_t malloc_key_once = PTHREAD_ONCE_INIT;
-static pthread_once_t realloc_key_once = PTHREAD_ONCE_INIT;
-
-static pthread_once_t free_key_once = PTHREAD_ONCE_INIT;
 
 /* ========================================================================> */
 
@@ -73,19 +56,10 @@ static pthread_key_t realloc_key;
 
 static pthread_key_t free_key;
 
-/* Private Function Prototypes ============================================> */
-
-static void calloc_init_once(void);
-static void malloc_init_once(void);
-static void realloc_init_once(void);
-
-static void free_init_once(void);
-
 /* Public Functions =======================================================> */
 
 void *calloc(size_t num, size_t size) {
-    if (libc_calloc == NULL)
-        (void) pthread_once(&calloc_key_once, calloc_init_once);
+    if (libc_calloc == NULL) jm_initialize();
 
     void *result = libc_calloc(num, size);
 
@@ -105,8 +79,7 @@ void *calloc(size_t num, size_t size) {
 }
 
 void *malloc(size_t size) {
-    if (libc_malloc == NULL)
-        (void) pthread_once(&malloc_key_once, malloc_init_once);
+    if (libc_malloc == NULL) jm_initialize();
 
     void *result = libc_malloc(size);
 
@@ -128,8 +101,7 @@ void *malloc(size_t size) {
 }
 
 void *realloc(void *ptr, size_t new_size) {
-    if (libc_realloc == NULL) 
-        (void) pthread_once(&realloc_key_once, realloc_init_once);
+    if (libc_realloc == NULL) jm_initialize();
 
     void *result = libc_realloc(ptr, new_size);
 
@@ -149,8 +121,7 @@ void *realloc(void *ptr, size_t new_size) {
 }
 
 void free(void *ptr) {
-    if (libc_free == NULL)
-        (void) pthread_once(&free_key_once, free_init_once);
+    if (libc_free == NULL) jm_initialize();
 
     if ((pthread_getspecific(free_key)) == NULL) {
         pthread_setspecific(free_key, &free_key);
@@ -167,13 +138,7 @@ void free(void *ptr) {
 
 /* ========================================================================> */
 
-PRINTF_VISIBILITY void putchar_(char c) {
-    write(1, &c, 1);
-}
-
-/* Private Functions ======================================================> */
-
-static void calloc_init_once(void) {
+void calloc_init_once(void) {
     pthread_key_create(&calloc_key, NULL);
 
 #ifdef __GLIBC__
@@ -189,7 +154,7 @@ static void calloc_init_once(void) {
     assert(libc_calloc != NULL);
 }
 
-static void malloc_init_once(void) {
+void malloc_init_once(void) {
     pthread_key_create(&malloc_key, NULL);
 
     void *libc_malloc_ptr = dlsym(RTLD_NEXT, "malloc");
@@ -199,7 +164,7 @@ static void malloc_init_once(void) {
     assert(libc_malloc != NULL);
 }
 
-static void realloc_init_once(void) {
+void realloc_init_once(void) {
     pthread_key_create(&realloc_key, NULL);
 
     void *libc_realloc_ptr = dlsym(RTLD_NEXT, "realloc");
@@ -209,7 +174,7 @@ static void realloc_init_once(void) {
     assert(libc_realloc != NULL);
 }
 
-static void free_init_once(void) {
+void free_init_once(void) {
     pthread_key_create(&free_key, NULL);
 
     void *libc_free_ptr = dlsym(RTLD_NEXT, "free");
@@ -217,4 +182,10 @@ static void free_init_once(void) {
     libc_free = libc_free_ptr;
 
     assert(libc_free != NULL);
+}
+
+/* ========================================================================> */
+
+PRINTF_VISIBILITY void putchar_(char c) {
+    write(1, &c, 1);
 }

@@ -20,42 +20,26 @@
     DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef JMPROF_H
-#define JMPROF_H
-
 /* Includes ===============================================================> */
 
-#include "printf.h"
+#include <pthread.h>
 
-/* Macros =================================================================> */
+#include "jmprof.h"
 
-// clang-format off
+/* Private Variables ======================================================> */
 
-#define REENTRANT_PRINTF     printf_
-#define REENTRANT_VPRINTF    vprintf_
-#define REENTRANT_SPRINTF    sprintf_
-#define REENTRANT_VSPRINTF   vsprintf_
-#define REENTRANT_SNPRINTF   snprintf_
-#define REENTRANT_VSNPRINTF  vsnprintf_
+static pthread_once_t calloc_key_once = PTHREAD_ONCE_INIT;
+static pthread_once_t malloc_key_once = PTHREAD_ONCE_INIT;
+static pthread_once_t realloc_key_once = PTHREAD_ONCE_INIT;
 
-// clang-format on
+static pthread_once_t free_key_once = PTHREAD_ONCE_INIT;
 
-/* Public Function Prototypes =============================================> */
+/* Public Functions =======================================================> */
 
-/* (from src/backtrace.c) =================================================> */
-
-void jm_print_backtrace(void);
-
-/* (from src/initialize.c) ================================================> */
-
-void jm_initialize(void);
-
-/* (from src/preload.c) ===================================================> */
-
-void calloc_init_once(void);
-void malloc_init_once(void);
-void realloc_init_once(void);
-
-void free_init_once(void);
-
-#endif // `JMPROF_H`
+void jm_initialize(void) {
+    (void) pthread_once(&calloc_key_once, calloc_init_once);
+    (void) pthread_once(&malloc_key_once, malloc_init_once);
+    (void) pthread_once(&realloc_key_once, realloc_init_once);
+    
+    (void) pthread_once(&free_key_once, free_init_once);
+}
