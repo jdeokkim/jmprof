@@ -22,8 +22,6 @@
 
 /* Includes ===============================================================> */
 
-#include <elfutils/libdwfl.h>
-
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
 
@@ -35,11 +33,4 @@
 
 /* Public Functions =======================================================> */
 
-void jm_print_backtrace(void) {
-    void *traces[MAX_BACKTRACE_COUNT];
-
-    int size = unw_backtrace(traces, MAX_BACKTRACE_COUNT);
-
-    for (int i = 0; i < size; i++)
-        REENTRANT_PRINTF("  %p\n", traces[i]);
-}
+// TODO: ...

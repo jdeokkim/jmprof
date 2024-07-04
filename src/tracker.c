@@ -22,7 +22,13 @@
 
 /* Includes ===============================================================> */
 
+#define _GNU_SOURCE
+
+#include <limits.h>
 #include <pthread.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "jmprof.h"
 
@@ -34,12 +40,47 @@ static pthread_once_t realloc_key_once = PTHREAD_ONCE_INIT;
 
 static pthread_once_t free_key_once = PTHREAD_ONCE_INIT;
 
+/* ========================================================================> */
+
+static pthread_once_t dlopen_key_once = PTHREAD_ONCE_INIT;
+static pthread_once_t dlclose_key_once = PTHREAD_ONCE_INIT;
+
+/* Private Function Prototypes ============================================> */
+
+// TODO: ...
+
 /* Public Functions =======================================================> */
 
-void jm_initialize(void) {
-    (void) pthread_once(&calloc_key_once, calloc_init_once);
-    (void) pthread_once(&malloc_key_once, malloc_init_once);
-    (void) pthread_once(&realloc_key_once, realloc_init_once);
-    
-    (void) pthread_once(&free_key_once, free_init_once);
+void jm_tracker_init(void) {
+    jm_preload_init();
+
+/* ========================================================================> */
+
+    unsetenv("LD_PRELOAD");
+
+/* ========================================================================> */
+
+    char path[PATH_MAX + 1];
+
+    (void) realpath("/proc/self/exe", path);
+
+    // TODO: ...
+
+/* ========================================================================> */
+
+    atexit(jm_tracker_deinit);
 }
+
+/* Private Functions ======================================================> */
+
+void jm_tracker_deinit(void) {
+    jm_preload_deinit();
+
+/* ========================================================================> */
+
+    // TODO: ...
+}
+
+/* Private Function Prototypes ============================================> */
+
+// TODO: ...

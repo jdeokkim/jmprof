@@ -30,7 +30,7 @@
 
 # ============================================================================>
 
-_COLOR_BEGIN = \033[1;38;5;026m
+_COLOR_BEGIN = \033[1;38;5;063m
 _COLOR_END = \033[m
 
 # ============================================================================>
@@ -48,10 +48,10 @@ LIBRARY_PATH = lib
 SOURCE_PATH = src
 
 OBJECTS = \
-	${SOURCE_PATH}/backtrace.o   \
-	${SOURCE_PATH}/initialize.o  \
-	${SOURCE_PATH}/preload.o     \
-	${SOURCE_PATH}/printf.o
+	${SOURCE_PATH}/backtrace.o  \
+	${SOURCE_PATH}/preload.o    \
+	${SOURCE_PATH}/printf.o     \
+	${SOURCE_PATH}/tracker.o
 
 TARGETS = ${LIBRARY_PATH}/lib${PROJECT_NAME}.so
 
@@ -61,7 +61,7 @@ PREFIX = ${DESTDIR}/usr
 
 CC = cc
 CFLAGS = -D_DEFAULT_SOURCE -fPIC -g -I${INCLUDE_PATH} -O2 -std=gnu99
-LDFLAGS = -lpthread -lunwind -pthread -shared
+LDFLAGS = -ldw -lelf -lpthread -lunwind -pthread -shared
 
 CFLAGS += -Wall -Wno-unused-but-set-variable -Wno-unused-value \
 	-Wno-unused-variable

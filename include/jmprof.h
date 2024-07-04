@@ -44,18 +44,16 @@
 
 /* (from src/backtrace.c) =================================================> */
 
-void jm_print_backtrace(void);
-
-/* (from src/initialize.c) ================================================> */
-
-void jm_initialize(void);
+// TODO: ...
 
 /* (from src/preload.c) ===================================================> */
 
-void calloc_init_once(void);
-void malloc_init_once(void);
-void realloc_init_once(void);
+void jm_preload_init(void);
+void jm_preload_deinit(void);
 
-void free_init_once(void);
+/* (from src/tracker.c) ================================================> */
+
+void jm_tracker_init(void);
+void jm_tracker_deinit(void);
 
 #endif // `JMPROF_H`

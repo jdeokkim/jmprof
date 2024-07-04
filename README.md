@@ -21,6 +21,7 @@ A tiny heap profiler for GNU/Linux.
 
 - Each row in `/proc/$PID/maps` (`/fs/proc/base.c` in the GNU/Linux kernel source) describes a region of contiguous virtual memory in a process or thread.
 - By finding the first address for `/proc/$PID/maps` that has mapping which includes the instruction pointer address, we can resolve the symbol that corresponds to the mapped address.
+- The `libdwfl` library from `elfutils` can read DWARF, find and interpret debug information (the `.debug_info` section of an ELF), allowing us to perform symbol resolution in an easier way.
 
 ## Prerequisites
 
