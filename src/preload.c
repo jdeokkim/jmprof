@@ -26,6 +26,7 @@
 
 #include <assert.h>
 #include <stddef.h>
+
 #include <dlfcn.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -105,7 +106,7 @@ static void jm_preload_dlclose_deinit(void);
 
 /* Public Functions =======================================================> */
 
-void jm_preload_init(void) {
+JM_INIT_ONCE void jm_preload_init(void) {
     (void) pthread_once(&calloc_key_once, jm_preload_calloc_init);
     (void) pthread_once(&malloc_key_once, jm_preload_malloc_init);
     (void) pthread_once(&realloc_key_once, jm_preload_realloc_init);
@@ -116,7 +117,7 @@ void jm_preload_init(void) {
     (void) pthread_once(&dlclose_key_once, jm_preload_dlclose_init);
 }
 
-void jm_preload_deinit(void) {
+JM_INIT_ONCE void jm_preload_deinit(void) {
     (void) pthread_once(&calloc_key_once, jm_preload_calloc_deinit);
     (void) pthread_once(&malloc_key_once, jm_preload_malloc_deinit);
     (void) pthread_once(&realloc_key_once, jm_preload_realloc_deinit);

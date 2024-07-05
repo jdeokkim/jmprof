@@ -38,6 +38,10 @@
 #define REENTRANT_SNPRINTF   snprintf_
 #define REENTRANT_VSNPRINTF  vsnprintf_
 
+/* ========================================================================> */
+
+#define JM_INIT_ONCE 
+
 // clang-format on
 
 /* Public Function Prototypes =============================================> */
@@ -48,12 +52,14 @@
 
 /* (from src/preload.c) ===================================================> */
 
-void jm_preload_init(void);
-void jm_preload_deinit(void);
+JM_INIT_ONCE void jm_preload_init(void);
+JM_INIT_ONCE void jm_preload_deinit(void);
 
 /* (from src/tracker.c) ================================================> */
 
-void jm_tracker_init(void);
-void jm_tracker_deinit(void);
+JM_INIT_ONCE void jm_tracker_init(void);
+JM_INIT_ONCE void jm_tracker_deinit(void);
+
+void jm_tracker_fprintf(const char* format, ...);
 
 #endif // `JMPROF_H`
