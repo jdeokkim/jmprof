@@ -32,35 +32,41 @@
 
 #include <fcntl.h>
 #include <libgen.h>
+#include <link.h>
 #include <pthread.h>
 #include <unistd.h>
 
 #include "jmprof.h"
 
-/* Macros =================================================================> */
-
-// clang-format off
-
-#define MAX_BUFFER_SIZE  8192
-
-// clang-format on
-
 /* Private Variables ======================================================> */
 
 static pthread_once_t tracker_init_once = PTHREAD_ONCE_INIT;
+static pthread_once_t tracker_deinit_once = PTHREAD_ONCE_INIT;
 
 /* ========================================================================> */
 
-static pthread_mutex_t tracker_file_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t is_dirty_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t tracker_fd_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* ========================================================================> */
 
-static int tracker_file_fd = -1;
+JM_READ_ONLY static char exec_path[PATH_MAX + 1];
+JM_READ_ONLY static char tracker_path[PATH_MAX + 1];
+
+/* ========================================================================> */
+
+static bool is_dirty = true;
+
+static int tracker_fd = -1;
 
 /* Private Function Prototypes ============================================> */
 
 static void jm_tracker_init_(void);
 static void jm_tracker_deinit_(void);
+
+static int dl_iterate_phdr_callback(
+    struct dl_phdr_info *info, size_t size, void *data
+);
 
 /* Public Functions =======================================================> */
 
@@ -69,11 +75,13 @@ JM_INIT_ONCE void jm_tracker_init(void) {
 }
 
 JM_INIT_ONCE void jm_tracker_deinit(void) {
-    pthread_once(&tracker_init_once, jm_tracker_deinit_);
+    pthread_once(&tracker_deinit_once, jm_tracker_deinit_);
 }
 
+/* ========================================================================> */
+
 void jm_tracker_fprintf(const char* format, ...) {
-    pthread_mutex_lock(&tracker_file_mutex);
+    pthread_mutex_lock(&tracker_fd_mutex);
 
     {
         va_list args;
@@ -99,12 +107,36 @@ void jm_tracker_fprintf(const char* format, ...) {
             buffer + len, MAX_BUFFER_SIZE, format, args
         );
 
-        write(tracker_file_fd, buffer, len);
+        write(tracker_fd, buffer, len);
 
         va_end(args);
     }
 
-    pthread_mutex_unlock(&tracker_file_mutex);
+    pthread_mutex_unlock(&tracker_fd_mutex);
+}
+
+void jm_tracker_set_dirty(bool value) {
+    pthread_mutex_lock(&is_dirty_mutex);
+
+    {
+        is_dirty = value;
+    }
+
+    pthread_mutex_unlock(&is_dirty_mutex);
+}
+
+void jm_tracker_update_mappings(void) {
+    pthread_mutex_lock(&is_dirty_mutex);
+
+    {
+        if (!is_dirty) return;
+
+        is_dirty = false;
+
+        dl_iterate_phdr(dl_iterate_phdr_callback, NULL);
+    }
+
+    pthread_mutex_unlock(&is_dirty_mutex);
 }
 
 /* Private Functions ======================================================> */
@@ -118,34 +150,32 @@ static void jm_tracker_init_(void) {
 
 /* ========================================================================> */
 
-    char path_[PATH_MAX + 1];
-
-    if (readlink("/proc/self/exe", path_, PATH_MAX) == -1)
-        REENTRANT_SNPRINTF(path_, sizeof "unknown", "unknown");
+    if (readlink("/proc/self/exe", exec_path, PATH_MAX) == -1)
+        REENTRANT_SNPRINTF(exec_path, sizeof "unknown", "unknown");
 
     int len = REENTRANT_SNPRINTF(
-        NULL, 0, "jmprof.%s.%jd", basename(path_), (intmax_t) getpid()
+        NULL, 0, "jmprof.%s.%jd", 
+        basename(exec_path), (intmax_t) getpid()
     );
-
-    char path[PATH_MAX + 1];
 
     (void) REENTRANT_SNPRINTF(
-        path, len, "jmprof.%s.%jd", basename(path_), (intmax_t) getpid()
+        tracker_path, len, "jmprof.%s.%jd", 
+        basename(exec_path), (intmax_t) getpid()
     );
 
-    tracker_file_fd = open(
-        path, 
+    tracker_fd = open(
+        tracker_path, 
         O_CLOEXEC | O_CREAT | O_WRONLY, 
         (mode_t) 0644
     );
 
 /* ========================================================================> */
 
-    jm_tracker_fprintf("x %s\n", path_);
+    jm_tracker_fprintf("x %s\n", exec_path);
 
 /* ========================================================================> */
 
-    atexit(jm_tracker_deinit);  
+    atexit(jm_tracker_deinit);
 }
 
 static void jm_tracker_deinit_(void) {
@@ -153,5 +183,21 @@ static void jm_tracker_deinit_(void) {
 
 /* ========================================================================> */
 
-    close(tracker_file_fd);
+    close(tracker_fd);
+
+/* ========================================================================> */
+
+    jm_symbols_parse(tracker_path);
+}
+
+static int dl_iterate_phdr_callback(
+    struct dl_phdr_info *info, size_t size, void *data
+) {
+    const char *dlpi_name = info->dlpi_name;
+
+    if (dlpi_name == NULL || !dlpi_name[0]) dlpi_name = exec_path;
+
+    jm_tracker_fprintf("m 0x%jx %s\n", info->dlpi_addr, dlpi_name);
+
+    return 0;
 }

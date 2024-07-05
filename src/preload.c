@@ -61,16 +61,25 @@ static jm_libc_dlclose *libc_dlclose;
 
 /* ========================================================================> */
 
-static pthread_once_t calloc_key_once = PTHREAD_ONCE_INIT;
-static pthread_once_t malloc_key_once = PTHREAD_ONCE_INIT;
-static pthread_once_t realloc_key_once = PTHREAD_ONCE_INIT;
+static pthread_once_t calloc_init_once = PTHREAD_ONCE_INIT;
+static pthread_once_t calloc_deinit_once = PTHREAD_ONCE_INIT;
 
-static pthread_once_t free_key_once = PTHREAD_ONCE_INIT;
+static pthread_once_t malloc_init_once = PTHREAD_ONCE_INIT;
+static pthread_once_t malloc_deinit_once = PTHREAD_ONCE_INIT;
+
+static pthread_once_t realloc_init_once = PTHREAD_ONCE_INIT;
+static pthread_once_t realloc_deinit_once = PTHREAD_ONCE_INIT;
+
+static pthread_once_t free_init_once = PTHREAD_ONCE_INIT;
+static pthread_once_t free_deinit_once = PTHREAD_ONCE_INIT;
 
 /* ========================================================================> */
 
-static pthread_once_t dlopen_key_once = PTHREAD_ONCE_INIT;
-static pthread_once_t dlclose_key_once = PTHREAD_ONCE_INIT;
+static pthread_once_t dlopen_init_once = PTHREAD_ONCE_INIT;
+static pthread_once_t dlopen_deinit_once = PTHREAD_ONCE_INIT;
+
+static pthread_once_t dlclose_init_once = PTHREAD_ONCE_INIT;
+static pthread_once_t dlclose_deinit_once = PTHREAD_ONCE_INIT;
 
 /* ========================================================================> */
 
@@ -107,25 +116,25 @@ static void jm_preload_dlclose_deinit(void);
 /* Public Functions =======================================================> */
 
 JM_INIT_ONCE void jm_preload_init(void) {
-    (void) pthread_once(&calloc_key_once, jm_preload_calloc_init);
-    (void) pthread_once(&malloc_key_once, jm_preload_malloc_init);
-    (void) pthread_once(&realloc_key_once, jm_preload_realloc_init);
+    (void) pthread_once(&calloc_init_once, jm_preload_calloc_init);
+    (void) pthread_once(&malloc_init_once, jm_preload_malloc_init);
+    (void) pthread_once(&realloc_init_once, jm_preload_realloc_init);
     
-    (void) pthread_once(&free_key_once, jm_preload_free_init);
+    (void) pthread_once(&free_init_once, jm_preload_free_init);
 
-    (void) pthread_once(&dlopen_key_once, jm_preload_dlopen_init);
-    (void) pthread_once(&dlclose_key_once, jm_preload_dlclose_init);
+    (void) pthread_once(&dlopen_init_once, jm_preload_dlopen_init);
+    (void) pthread_once(&dlclose_init_once, jm_preload_dlclose_init);
 }
 
 JM_INIT_ONCE void jm_preload_deinit(void) {
-    (void) pthread_once(&calloc_key_once, jm_preload_calloc_deinit);
-    (void) pthread_once(&malloc_key_once, jm_preload_malloc_deinit);
-    (void) pthread_once(&realloc_key_once, jm_preload_realloc_deinit);
+    (void) pthread_once(&calloc_deinit_once, jm_preload_calloc_deinit);
+    (void) pthread_once(&malloc_deinit_once, jm_preload_malloc_deinit);
+    (void) pthread_once(&realloc_deinit_once, jm_preload_realloc_deinit);
     
-    (void) pthread_once(&free_key_once, jm_preload_free_deinit);
+    (void) pthread_once(&free_deinit_once, jm_preload_free_deinit);
 
-    (void) pthread_once(&dlopen_key_once, jm_preload_dlopen_deinit);
-    (void) pthread_once(&dlclose_key_once, jm_preload_dlclose_deinit);
+    (void) pthread_once(&dlopen_deinit_once, jm_preload_dlopen_deinit);
+    (void) pthread_once(&dlclose_deinit_once, jm_preload_dlclose_deinit);
 }
 
 /* ========================================================================> */
@@ -138,7 +147,8 @@ void *calloc(size_t num, size_t size) {
     if ((pthread_getspecific(calloc_key)) == NULL) {
         pthread_setspecific(calloc_key, &calloc_key);
 
-        // TODO: ...
+        jm_tracker_update_mappings();
+        jm_backtrace_unwind(true, result);
 
         pthread_setspecific(calloc_key, NULL);
     }
@@ -154,7 +164,8 @@ void *malloc(size_t size) {
     if ((pthread_getspecific(malloc_key)) == NULL) {
         pthread_setspecific(malloc_key, &malloc_key);
 
-        // TODO: ...
+        jm_tracker_update_mappings();
+        jm_backtrace_unwind(true, result);
 
         pthread_setspecific(malloc_key, NULL);
     }
@@ -170,13 +181,12 @@ void *realloc(void *ptr, size_t new_size) {
     if ((pthread_getspecific(realloc_key)) == NULL) {
         pthread_setspecific(realloc_key, &realloc_key);
 
-        // TODO: ...
-
-        if (ptr == NULL) {
-            // TODO: `malloc()`
-        } else if (new_size == 0) {
-            // TODO: `free()`
-        }
+        jm_tracker_update_mappings();
+        
+        if ((ptr == NULL) && (new_size > 0)) 
+            jm_backtrace_unwind(true, result);
+        else if ((ptr != NULL) && (new_size == 0)) 
+            jm_backtrace_unwind(false, result);
 
         pthread_setspecific(realloc_key, NULL);
     }
@@ -190,9 +200,7 @@ void free(void *ptr) {
     if ((pthread_getspecific(free_key)) == NULL) {
         pthread_setspecific(free_key, &free_key);
 
-        if (ptr != NULL) {
-            // TODO: ...
-        }
+        if (ptr != NULL) jm_backtrace_unwind(false, ptr);
 
         pthread_setspecific(free_key, NULL);
     }
@@ -205,17 +213,21 @@ void free(void *ptr) {
 void *dlopen(const char *file, int mode) {
     if (libc_dlopen == NULL) jm_tracker_init();
 
-    /* TODO: ... */
+    void *result = libc_dlopen(file, mode);
 
-    return libc_dlopen(file, mode);
+    if (result != NULL) jm_tracker_set_dirty(true);
+
+    return result;
 }
 
 int dlclose(void *handle) {
     if (libc_dlclose == NULL) jm_tracker_init();
 
-    /* TODO: ... */
+    int result = libc_dlclose(handle);
 
-    return libc_dlclose(handle);
+    if (result == 0) jm_tracker_set_dirty(true);
+
+    return result;
 }
 
 /* ========================================================================> */

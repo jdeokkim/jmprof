@@ -24,36 +24,54 @@
 
 #define _GNU_SOURCE
 
+#include <stdio.h>
+
 #include <pthread.h>
 
-#define UNW_LOCAL_ONLY
-#include <libunwind.h>
+#include <elfutils/libdwfl.h>
 
 #include "jmprof.h"
 
-/* Macros =================================================================> */
+/* Constants ==============================================================> */
 
-#define MAX_BACKTRACE_COUNT  32
+const Dwfl_Callbacks dwfl_callbacks = {
+    .find_elf = dwfl_build_id_find_elf,
+    .find_debuginfo = dwfl_standard_find_debuginfo,
+    .section_address = dwfl_offline_section_address,
+    .debuginfo_path = NULL
+};
 
 /* Private Variables ======================================================> */
 
-static pthread_mutex_t unwind_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t dwfl_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/* ========================================================================> */
+
+static Dwfl *dwfl;
 
 /* Public Functions =======================================================> */
 
-void jm_backtrace_unwind(bool is_alloc, const void *ptr) {
-    pthread_mutex_lock(&unwind_mutex);
+void jm_symbols_parse(const char *path) {
+    pthread_mutex_lock(&dwfl_mutex);
 
     {
-        jm_tracker_fprintf("%c 0x%jx\n", (is_alloc ? 'a' : 'f'), ptr);
+        // TODO: ???
+        dwfl = dwfl_begin(&dwfl_callbacks);
 
-        void *traces[MAX_BACKTRACE_COUNT];
+        //FILE *fp = fopen(path, "r");
 
-        int size = unw_backtrace(traces, MAX_BACKTRACE_COUNT);
+/* ========================================================================> */
 
-        for (int i = 0; i < size; i++)
-            jm_tracker_fprintf("b 0x%jx\n", traces[i]);
+        char buffer[MAX_BUFFER_SIZE];
+
+        // TODO: ...
+
+/* ========================================================================> */
+
+        //fclose(fp);
+
+        dwfl_end(dwfl);
     }
 
-    pthread_mutex_unlock(&unwind_mutex);
+    pthread_mutex_unlock(&dwfl_mutex);
 }

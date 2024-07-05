@@ -51,6 +51,7 @@ OBJECTS = \
 	${SOURCE_PATH}/backtrace.o  \
 	${SOURCE_PATH}/preload.o    \
 	${SOURCE_PATH}/printf.o     \
+	${SOURCE_PATH}/symbols.o    \
 	${SOURCE_PATH}/tracker.o
 
 TARGETS = ${LIBRARY_PATH}/lib${PROJECT_NAME}.so

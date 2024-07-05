@@ -25,6 +25,8 @@
 
 /* Includes ===============================================================> */
 
+#include <stdbool.h>
+
 #include "printf.h"
 
 /* Macros =================================================================> */
@@ -41,6 +43,11 @@
 /* ========================================================================> */
 
 #define JM_INIT_ONCE 
+#define JM_READ_ONLY 
+
+/* ========================================================================> */
+
+#define MAX_BUFFER_SIZE  8192
 
 // clang-format on
 
@@ -48,18 +55,24 @@
 
 /* (from src/backtrace.c) =================================================> */
 
-// TODO: ...
+void jm_backtrace_unwind(bool is_alloc, const void *ptr);
 
 /* (from src/preload.c) ===================================================> */
 
 JM_INIT_ONCE void jm_preload_init(void);
 JM_INIT_ONCE void jm_preload_deinit(void);
 
-/* (from src/tracker.c) ================================================> */
+/* (from src/symbols.c) ===================================================> */
+
+void jm_symbols_parse(const char *path);
+
+/* (from src/tracker.c) ===================================================> */
 
 JM_INIT_ONCE void jm_tracker_init(void);
 JM_INIT_ONCE void jm_tracker_deinit(void);
 
 void jm_tracker_fprintf(const char* format, ...);
+void jm_tracker_set_dirty(bool value);
+void jm_tracker_update_mappings(void);
 
 #endif // `JMPROF_H`
