@@ -183,11 +183,8 @@ static void jm_tracker_deinit_(void) {
 
 /* ========================================================================> */
 
-    close(tracker_fd);
-
-/* ========================================================================> */
-
-    jm_symbols_parse(tracker_path);
+    if (close(tracker_fd) == 0) 
+        jm_symbols_parse(tracker_path);
 }
 
 static int dl_iterate_phdr_callback(

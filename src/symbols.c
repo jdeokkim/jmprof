@@ -55,10 +55,9 @@ void jm_symbols_parse(const char *path) {
     pthread_mutex_lock(&dwfl_mutex);
 
     {
-        // TODO: ???
         dwfl = dwfl_begin(&dwfl_callbacks);
 
-        //FILE *fp = fopen(path, "r");
+        FILE *fp = fopen(path, "r");
 
 /* ========================================================================> */
 
@@ -68,7 +67,7 @@ void jm_symbols_parse(const char *path) {
 
 /* ========================================================================> */
 
-        //fclose(fp);
+        fclose(fp);
 
         dwfl_end(dwfl);
     }

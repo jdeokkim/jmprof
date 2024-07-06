@@ -89,6 +89,10 @@ static pthread_key_t realloc_key;
 
 static pthread_key_t free_key;
 
+/* ========================================================================> */
+
+static bool is_initialized = true;
+
 /* Private Function Prototypes ============================================> */
 
 static void jm_preload_calloc_init(void);
@@ -124,6 +128,8 @@ JM_INIT_ONCE void jm_preload_init(void) {
 
     (void) pthread_once(&dlopen_init_once, jm_preload_dlopen_init);
     (void) pthread_once(&dlclose_init_once, jm_preload_dlclose_init);
+
+    is_initialized = true;
 }
 
 JM_INIT_ONCE void jm_preload_deinit(void) {
@@ -135,6 +141,8 @@ JM_INIT_ONCE void jm_preload_deinit(void) {
 
     (void) pthread_once(&dlopen_deinit_once, jm_preload_dlopen_deinit);
     (void) pthread_once(&dlclose_deinit_once, jm_preload_dlclose_deinit);
+
+    is_initialized = false;
 }
 
 /* ========================================================================> */
@@ -144,7 +152,7 @@ void *calloc(size_t num, size_t size) {
 
     void *result = libc_calloc(num, size);
 
-    if ((pthread_getspecific(calloc_key)) == NULL) {
+    if (is_initialized && (pthread_getspecific(calloc_key)) == NULL) {
         pthread_setspecific(calloc_key, &calloc_key);
 
         jm_tracker_update_mappings();
@@ -161,7 +169,7 @@ void *malloc(size_t size) {
 
     void *result = libc_malloc(size);
 
-    if ((pthread_getspecific(malloc_key)) == NULL) {
+    if (is_initialized && (pthread_getspecific(malloc_key)) == NULL) {
         pthread_setspecific(malloc_key, &malloc_key);
 
         jm_tracker_update_mappings();
@@ -178,7 +186,7 @@ void *realloc(void *ptr, size_t new_size) {
 
     void *result = libc_realloc(ptr, new_size);
 
-    if ((pthread_getspecific(realloc_key)) == NULL) {
+    if (is_initialized && (pthread_getspecific(realloc_key)) == NULL) {
         pthread_setspecific(realloc_key, &realloc_key);
 
         jm_tracker_update_mappings();
@@ -197,7 +205,7 @@ void *realloc(void *ptr, size_t new_size) {
 void free(void *ptr) {
     if (libc_free == NULL) jm_tracker_init();
 
-    if ((pthread_getspecific(free_key)) == NULL) {
+    if (is_initialized && (pthread_getspecific(free_key)) == NULL) {
         pthread_setspecific(free_key, &free_key);
 
         if (ptr != NULL) jm_backtrace_unwind(false, ptr);

@@ -62,7 +62,8 @@ PREFIX = ${DESTDIR}/usr
 
 CC = cc
 CFLAGS = -D_DEFAULT_SOURCE -fPIC -g -I${INCLUDE_PATH} -O2 -std=gnu99
-LDFLAGS = -ldw -lelf -lpthread -lunwind -pthread -shared
+LDFLAGS = -pthread -shared
+LDLIBS = -ldw -lelf -lpthread -lunwind
 
 CFLAGS += -Wall -Wno-unused-but-set-variable -Wno-unused-value \
 	-Wno-unused-variable
