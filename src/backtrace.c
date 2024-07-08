@@ -22,10 +22,6 @@
 
 /* Includes ===============================================================> */
 
-#define _GNU_SOURCE
-
-#include <pthread.h>
-
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
 
@@ -33,7 +29,7 @@
 
 /* Macros =================================================================> */
 
-#define MAX_BACKTRACE_COUNT  32
+#define MAX_BACKTRACE_COUNT 64
 
 /* Private Variables ======================================================> */
 
@@ -45,14 +41,20 @@ void jm_backtrace_unwind(bool is_alloc, const void *ptr) {
     pthread_mutex_lock(&unwind_mutex);
 
     {
-        jm_tracker_fprintf("%c 0x%jx\n", (is_alloc ? 'a' : 'f'), ptr);
+        jm_tracker_fprintf("%c 0x%jx\n",
+                           (is_alloc ? JM_OPCODE_ALLOC : JM_OPCODE_FREE),
+                           (uintptr_t) ptr);
+
+        /*
 
         void *traces[MAX_BACKTRACE_COUNT];
 
         int size = unw_backtrace(traces, MAX_BACKTRACE_COUNT);
 
         for (int i = 0; i < size; i++)
-            jm_tracker_fprintf("b 0x%jx\n", traces[i]);
+            jm_tracker_fprintf("%c 0x%jx\n", JM_OPCODE_BACKTRACE, traces[i]);
+        
+        */
     }
 
     pthread_mutex_unlock(&unwind_mutex);

@@ -28,23 +28,22 @@
 #include <stddef.h>
 
 #include <dlfcn.h>
-#include <pthread.h>
 #include <unistd.h>
 
 #include "jmprof.h"
 
 /* Typedefs ===============================================================> */
 
-typedef void *(jm_libc_calloc_t)(size_t num, size_t size);
-typedef void *(jm_libc_malloc_t)(size_t size);
-typedef void *(jm_libc_realloc_t)(void *ptr, size_t new_size);
+typedef void *(jm_libc_calloc_t) (size_t num, size_t size);
+typedef void *(jm_libc_malloc_t) (size_t size);
+typedef void *(jm_libc_realloc_t) (void *ptr, size_t new_size);
 
-typedef void (jm_libc_free_t)(void *ptr);
+typedef void(jm_libc_free_t)(void *ptr);
 
 /* TODO: `aligned_alloc()`, `posix_memalign()`, `sbrk()`, `mmap()`, etc. */
 
-typedef void *(jm_libc_dlopen)(const char *file, int mode);
-typedef int (jm_libc_dlclose)(void *handle);
+typedef void *(jm_libc_dlopen) (const char *file, int mode);
+typedef int(jm_libc_dlclose)(void *handle);
 
 /* Private Variables ======================================================> */
 
@@ -123,7 +122,7 @@ JM_INIT_ONCE void jm_preload_init(void) {
     (void) pthread_once(&calloc_init_once, jm_preload_calloc_init);
     (void) pthread_once(&malloc_init_once, jm_preload_malloc_init);
     (void) pthread_once(&realloc_init_once, jm_preload_realloc_init);
-    
+
     (void) pthread_once(&free_init_once, jm_preload_free_init);
 
     (void) pthread_once(&dlopen_init_once, jm_preload_dlopen_init);
@@ -136,7 +135,7 @@ JM_INIT_ONCE void jm_preload_deinit(void) {
     (void) pthread_once(&calloc_deinit_once, jm_preload_calloc_deinit);
     (void) pthread_once(&malloc_deinit_once, jm_preload_malloc_deinit);
     (void) pthread_once(&realloc_deinit_once, jm_preload_realloc_deinit);
-    
+
     (void) pthread_once(&free_deinit_once, jm_preload_free_deinit);
 
     (void) pthread_once(&dlopen_deinit_once, jm_preload_dlopen_deinit);
@@ -190,10 +189,9 @@ void *realloc(void *ptr, size_t new_size) {
         pthread_setspecific(realloc_key, &realloc_key);
 
         jm_tracker_update_mappings();
-        
-        if ((ptr == NULL) && (new_size > 0)) 
-            jm_backtrace_unwind(true, result);
-        else if ((ptr != NULL) && (new_size == 0)) 
+
+        if ((ptr == NULL) && (new_size > 0)) jm_backtrace_unwind(true, result);
+        else if ((ptr != NULL) && (new_size == 0))
             jm_backtrace_unwind(false, result);
 
         pthread_setspecific(realloc_key, NULL);

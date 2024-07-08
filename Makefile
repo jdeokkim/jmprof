@@ -61,7 +61,8 @@ PREFIX = ${DESTDIR}/usr
 # ============================================================================>
 
 CC = cc
-CFLAGS = -D_DEFAULT_SOURCE -fPIC -g -I${INCLUDE_PATH} -O2 -std=gnu99
+CFLAGS = -D_DEFAULT_SOURCE -fPIC -g \
+	-I${INCLUDE_PATH} -I${SOURCE_PATH}/external -O2 -std=gnu99
 LDFLAGS = -pthread -shared
 LDLIBS = -ldw -lelf -lpthread -lunwind
 

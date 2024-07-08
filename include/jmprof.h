@@ -25,7 +25,12 @@
 
 /* Includes ===============================================================> */
 
+#define _GNU_SOURCE
+
 #include <stdbool.h>
+#include <stdint.h>
+
+#include <pthread.h>
 
 #include "printf.h"
 
@@ -42,6 +47,14 @@
 
 /* ========================================================================> */
 
+#define JM_INIT_MESSAGE \
+    "<===============================================================\n"
+
+#define JM_DEINIT_MESSAGE \
+    "===============================================================>\n\n"
+
+/* ========================================================================> */
+
 #define JM_INIT_ONCE 
 #define JM_READ_ONLY 
 
@@ -50,6 +63,18 @@
 #define MAX_BUFFER_SIZE  8192
 
 // clang-format on
+
+/* Typedefs ===============================================================> */
+
+typedef enum jm_opcode_t_ {
+    JM_OPCODE_UNKNOWN,
+    JM_OPCODE_ALLOC          = 'a',
+    JM_OPCODE_BACKTRACE      = 'b',
+    JM_OPCODE_FREE           = 'f',
+    JM_OPCODE_MODULE         = 'm',
+    JM_OPCODE_UPDATE_MODULES = 'u',
+    JM_OPCODE_EXEC_PATH      = 'x'
+} jm_opcode_t;
 
 /* Public Function Prototypes =============================================> */
 
@@ -64,7 +89,7 @@ JM_INIT_ONCE void jm_preload_deinit(void);
 
 /* (from src/symbols.c) ===================================================> */
 
-void jm_symbols_parse(const char *path);
+void jm_symbols_summary(const char *path);
 
 /* (from src/tracker.c) ===================================================> */
 
