@@ -111,7 +111,7 @@ void jm_tracker_fprintf(const char *format, ...) {
 }
 
 void jm_tracker_set_dirty(bool value) {
-    pthread_mutex_lock(&is_dirty_mutex);
+    if (pthread_mutex_trylock(&is_dirty_mutex) != 0) return;
 
     { is_dirty = value; }
 
@@ -119,7 +119,7 @@ void jm_tracker_set_dirty(bool value) {
 }
 
 void jm_tracker_update_mappings(void) {
-    pthread_mutex_lock(&is_dirty_mutex);
+    if (pthread_mutex_trylock(&is_dirty_mutex) != 0) return;
 
     {
         if (!is_dirty) return;

@@ -151,7 +151,7 @@ void *calloc(size_t num, size_t size) {
 
     void *result = libc_calloc(num, size);
 
-    if (is_initialized && (pthread_getspecific(calloc_key)) == NULL) {
+    if (is_initialized && (pthread_getspecific(calloc_key) == NULL)) {
         pthread_setspecific(calloc_key, &calloc_key);
 
         jm_tracker_update_mappings();
@@ -168,7 +168,7 @@ void *malloc(size_t size) {
 
     void *result = libc_malloc(size);
 
-    if (is_initialized && (pthread_getspecific(malloc_key)) == NULL) {
+    if (is_initialized && (pthread_getspecific(malloc_key) == NULL)) {
         pthread_setspecific(malloc_key, &malloc_key);
 
         jm_tracker_update_mappings();
@@ -184,13 +184,14 @@ void *realloc(void *ptr, size_t new_size) {
     if (libc_realloc == NULL) jm_tracker_init();
 
     void *result = libc_realloc(ptr, new_size);
-
-    if (is_initialized && (pthread_getspecific(realloc_key)) == NULL) {
+    
+    if (is_initialized && (pthread_getspecific(realloc_key) == NULL)) {
         pthread_setspecific(realloc_key, &realloc_key);
 
         jm_tracker_update_mappings();
 
-        if ((ptr == NULL) && (new_size > 0)) jm_backtrace_unwind(true, result);
+        if ((ptr == NULL) && (new_size > 0)) 
+            jm_backtrace_unwind(true, result);
         else if ((ptr != NULL) && (new_size == 0))
             jm_backtrace_unwind(false, result);
 
@@ -203,7 +204,7 @@ void *realloc(void *ptr, size_t new_size) {
 void free(void *ptr) {
     if (libc_free == NULL) jm_tracker_init();
 
-    if (is_initialized && (pthread_getspecific(free_key)) == NULL) {
+    if (is_initialized && (pthread_getspecific(free_key) == NULL)) {
         pthread_setspecific(free_key, &free_key);
 
         if (ptr != NULL) jm_backtrace_unwind(false, ptr);
