@@ -27,6 +27,7 @@
 
 #define _GNU_SOURCE
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -60,7 +61,9 @@
 
 /* ========================================================================> */
 
-#define MAX_BUFFER_SIZE  8192
+#define MAX_BACKTRACE_COUNT    32
+#define MAX_BUFFER_SIZE        8192
+#define MAX_IDENTIFIER_LENGTH  128
 
 // clang-format on
 

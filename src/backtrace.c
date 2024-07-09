@@ -27,10 +27,6 @@
 
 #include "jmprof.h"
 
-/* Macros =================================================================> */
-
-#define MAX_BACKTRACE_COUNT 64
-
 /* Private Variables ======================================================> */
 
 static pthread_mutex_t unwind_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -46,7 +42,13 @@ void jm_backtrace_unwind(bool is_alloc, const void *ptr, size_t size) {
                            (uintptr_t) ptr,
                            size);
 
-        /* TODO: ... */
+        void *traces[MAX_BACKTRACE_COUNT];
+
+        // TODO: ...
+        int size = unw_backtrace(traces, MAX_BACKTRACE_COUNT);
+
+        for (int i = 0; i < size; i++)
+            jm_tracker_fprintf("b 0x%jx\n", traces[i]);
     }
 
     pthread_mutex_unlock(&unwind_mutex);

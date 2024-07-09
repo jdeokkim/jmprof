@@ -44,14 +44,22 @@ typedef struct jmInst_ {
     void *addr;
 } jmInst;
 
+typedef struct jmBacktrace_ {
+    GElf_Addr addr, mod_offset;
+    char mod_name[MAX_BUFFER_SIZE];
+    char sym_name[MAX_IDENTIFIER_LENGTH];
+} jmBacktrace;
+
 typedef struct jmAllocEntry_ {
     void *key;
-    size_t size;
+    size_t size, bt_top;
     uint64_t timestamp;
+    jmBacktrace traces[MAX_BACKTRACE_COUNT];
     UT_hash_handle hh;
 } jmAllocEntry;
 
 typedef struct jmSummary_ {
+    char exec_path[MAX_BUFFER_SIZE];
     struct jmSummaryStats_ {
         int count[2];
         size_t total;
@@ -83,8 +91,15 @@ static jmSummary summary;
 /* Private Function Prototypes ============================================> */
 
 static void jm_symbols_alloc_add_entry(jmInst inst);
+static jmAllocEntry *jm_symbols_alloc_find_entry(void *key);
 static void jm_symbols_alloc_delete_entry(jmAllocEntry *entry);
 
+static void jm_symbols_alloc_push_backtrace(jmAllocEntry *entry,
+                                            jmBacktrace bt);
+
+/* ========================================================================> */
+
+static jmBacktrace jm_symbols_build_backtrace(void *ptr);
 static jmInst jm_symbols_build_inst(const char *buffer);
 static void jm_symbols_parse_log(const char *path);
 
@@ -93,9 +108,10 @@ static void jm_symbols_parse_log(const char *path);
 void jm_symbols_summary(const char *path) {
     jm_symbols_parse_log(path);
 
-    REENTRANT_PRINTF("SUMMARY: \n");
+    REENTRANT_PRINTF("> %s\n\n", summary.exec_path);
 
-    REENTRANT_PRINTF("  %d allocs, %d frees (%ld bytes alloc-ed)\n",
+    REENTRANT_PRINTF("SUMMARY: \n"
+                     "  %d allocs, %d frees (%ld bytes alloc-ed)\n",
                      summary.stats.count[0],
                      summary.stats.count[1],
                      summary.stats.total);
@@ -106,18 +122,27 @@ void jm_symbols_summary(const char *path) {
         jmAllocEntry *head = summary.entries;
 
         for (; head != NULL; head = head->hh.next) {
-            REENTRANT_PRINTF("  ~ alloc #1 (@ %" PRIu64
+            REENTRANT_PRINTF("  ~ alloc #1 (! %" PRIu64
                              " ms) -> [%ld bytes]: \n",
                              head->timestamp,
                              head->size);
 
-            /* TODO: ... */
+            for (int i = 0; i < head->bt_top; i++) {
+                jmBacktrace bt = head->traces[i];
+
+                REENTRANT_PRINTF("    @ 0x%jx: %s\n"
+                                 "      (in %s @ 0x%jx)\n",
+                                 bt.addr,
+                                 bt.sym_name,
+                                 bt.mod_name,
+                                 bt.mod_offset);
+            }
         }
 
         jmAllocEntry *entry = NULL, *temp = NULL;
 
         HASH_ITER(hh, summary.entries, entry, temp)
-            jm_symbols_alloc_delete_entry(entry);
+        jm_symbols_alloc_delete_entry(entry);
     }
 
     REENTRANT_PRINTF("\n");
@@ -135,10 +160,51 @@ static void jm_symbols_alloc_add_entry(jmInst inst) {
     HASH_ADD_PTR(summary.entries, key, entry);
 }
 
+static jmAllocEntry *jm_symbols_alloc_find_entry(void *key) {
+    jmAllocEntry *entry = NULL;
+
+    HASH_FIND_PTR(summary.entries, &key, entry);
+
+    return entry;
+}
+
 static void jm_symbols_alloc_delete_entry(jmAllocEntry *entry) {
     HASH_DEL(summary.entries, entry);
 
     free(entry);
+}
+
+static void jm_symbols_alloc_push_backtrace(jmAllocEntry *entry,
+                                            jmBacktrace bt) {
+    entry->traces[entry->bt_top++] = bt;
+}
+
+/* ========================================================================> */
+
+static jmBacktrace jm_symbols_build_backtrace(void *ptr) {
+    jmBacktrace bt = { .addr = (GElf_Addr) ptr };
+
+    Dwfl_Module *mod = dwfl_addrmodule(dwfl, bt.addr);
+
+    GElf_Addr mod_addr_start = 0, mod_addr_end = 0;
+
+    const char *mod_name = dwfl_module_info(
+        mod, NULL, &mod_addr_start, &mod_addr_end, NULL, NULL, NULL, NULL);
+
+    bt.mod_offset = mod_addr_start;
+
+    (void) strcpy(bt.mod_name, mod_name);
+
+    GElf_Sym sym_info;
+
+    GElf_Addr sym_offset = 0;
+
+    const char *sym_name = dwfl_module_addrinfo(
+        mod, bt.addr, &sym_offset, &sym_info, NULL, NULL, NULL);
+
+    (void) strcpy(bt.sym_name, sym_name);
+
+    return bt;
 }
 
 static jmInst jm_symbols_build_inst(const char *buffer) {
@@ -164,44 +230,57 @@ static void jm_symbols_parse_log(const char *path) {
 
         FILE *fp = fopen(path, "r");
 
-        char buffer[MAX_BUFFER_SIZE], context[MAX_BUFFER_SIZE];
+        char buffer[MAX_BUFFER_SIZE];
+
+        void *alloc_ctx = NULL;
 
         while (fgets(buffer, sizeof buffer, fp) != NULL) {
             jmInst inst = jm_symbols_build_inst(buffer);
 
             switch (inst.opcode) {
                 case JM_OPCODE_ALLOC:
+                    jm_symbols_alloc_add_entry(inst);
+
                     summary.stats.count[0]++;
                     summary.stats.total += malloc_usable_size(inst.addr);
 
-                    jm_symbols_alloc_add_entry(inst);
+                    alloc_ctx = inst.addr;
 
                     break;
 
                 case JM_OPCODE_BACKTRACE:
-                    /* TODO: ... */
+                    assert(alloc_ctx != NULL);
+
+                    jm_symbols_alloc_push_backtrace(jm_symbols_alloc_find_entry(
+                                                        alloc_ctx),
+                                                    jm_symbols_build_backtrace(
+                                                        inst.addr));
 
                     break;
 
                 case JM_OPCODE_EXEC_PATH:
+                    (void) strcpy(summary.exec_path, inst.ctx);
+
                     break;
 
                 case JM_OPCODE_FREE:
                     summary.stats.count[1]++;
                     summary.stats.total -= malloc_usable_size(inst.addr);
 
+                    alloc_ctx = inst.addr;
+
                     break;
 
                 case JM_OPCODE_MODULE:
-                    if (strncmp(context,
+                    if (strncmp(inst.ctx,
                                 "linux-vdso.so",
                                 sizeof "linux-vdso.so")
                         == 0)
                         continue;
 
                     (void) dwfl_report_elf(dwfl,
-                                           context,
-                                           context,
+                                           inst.ctx,
+                                           inst.ctx,
                                            -1,
                                            (GElf_Addr) inst.addr,
                                            false);
@@ -209,8 +288,8 @@ static void jm_symbols_parse_log(const char *path) {
                     break;
 
                 case JM_OPCODE_UPDATE_MODULES:
-                    if (context[0] == '<') dwfl_report_begin(dwfl);
-                    else if (context[0] == '>')
+                    if (inst.ctx[0] == '<') dwfl_report_begin(dwfl);
+                    else if (inst.ctx[0] == '>')
                         (void) dwfl_report_end(dwfl, NULL, NULL);
 
                     break;

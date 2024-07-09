@@ -24,7 +24,6 @@
 
 #define _GNU_SOURCE
 
-#include <assert.h>
 #include <stddef.h>
 
 #include <dlfcn.h>
