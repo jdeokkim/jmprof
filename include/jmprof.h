@@ -37,7 +37,7 @@
 
 /* Macros =================================================================> */
 
-// clang-format off
+/* clang-format off */
 
 #define JMPROF_AUTHOR        "Jaedeok Kim (jdeokkim@protonmail.com)"
 #define JMPROF_VERSION       "0.0.1"
@@ -64,7 +64,7 @@
 #define MAX_BACKTRACE_COUNT  32
 #define MAX_BUFFER_SIZE      2048
 
-// clang-format on
+/* clang-format on */
 
 /* Typedefs ===============================================================> */
 

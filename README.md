@@ -1,6 +1,50 @@
 # jmprof
 
-A tiny heap profiler for GNU/Linux.
+A tiny, experimental heap profiler for GNU/Linux.
+
+## Prerequisites
+
+- GCC version 11.4.0+
+- Git version 2.34.0+
+- GNU coreutils version 8.3+
+- GNU Make version 4.2+
+- elfutils-dev(el) version 0.190+
+- libunwind-dev(el) version 1.8.1+
+
+```console
+$ sudo xbps-install base-devel elfutils-devel libunwind-devel
+```
+
+## Building
+
+```console
+$ make && sudo make install
+```
+
+## Example
+
+```
+$ jmprof ~/Workspace/c-lab/bin/c-lab.out
+<===============================================================
+===============================================================>
+
+> /home/jdeokkim/Workspace/c-lab/bin/c-lab.out
+
+SUMMARY: 
+  2 allocs, 1 frees (11368 bytes alloc-ed)
+
+  ~ alloc #1 (! 446422 ms) -> [11368 bytes]: 
+    @ 0x7f49b5fc69c3: calloc (src/preload.c:159:9)
+      (in /usr/lib/libjmprof.so)
+    @ 0x559208c6a188: main (src/main.c:13:14)
+      (in /home/jdeokkim/Workspace/c-lab/bin/c-lab.out)
+    @ 0x7f49b5df4c4c: __libc_start_call_main (../sysdeps/nptl/libc_start_call_main.h:74:3)
+      (in /usr/lib/libc.so.6)
+    @ 0x7f49b5df4d05: __libc_start_main@@GLIBC_2.34 (../csu/libc-start.c:128:20)
+      (in /usr/lib/libc.so.6)
+    @ 0x559208c6a091: _start (../sysdeps/x86_64/start.S:117:0)
+      (in /home/jdeokkim/Workspace/c-lab/bin/c-lab.out)
+```
 
 ## Summary
 
@@ -22,26 +66,6 @@ A tiny heap profiler for GNU/Linux.
 - Each row in `/proc/$PID/maps` (`/fs/proc/base.c` in the GNU/Linux kernel source) describes a region of contiguous virtual memory in a process or thread.
 - By finding the first address for `/proc/$PID/maps` that has mapping which includes the instruction pointer address, we can resolve the symbol that corresponds to the mapped address.
 - The `libdwfl` library from `elfutils` can read DWARF, find and interpret debug information (the `.debug_info` section of an ELF), allowing us to perform symbol resolution in an easier way.
-
-## Prerequisites
-
-- GCC version 11.4.0+
-- Git version 2.34.0+
-- GNU coreutils version 8.3+
-- GNU Make version 4.2+
-- elfutils-dev(el) version 0.190+
-- libunwind-dev(el) version 1.8.1+
-
-```console
-$ sudo xbps-install base-devel elfutils-devel libunwind-devel
-```
-
-## Building
-
-```console
-$ make && sudo make install
-$ jmprof <your-program>
-```
 
 ## References
 

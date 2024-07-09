@@ -61,6 +61,7 @@ typedef struct jmBacktrace_ {
 
 typedef struct jmAllocEntry_ {
     void *key;
+    bool is_leaking;
     size_t size, bt_top;
     uint64_t timestamp;
     jmBacktrace traces[MAX_BACKTRACE_COUNT];
@@ -133,6 +134,8 @@ void jm_symbols_summary(const char *path) {
         jmAllocEntry *head = summary.entries;
 
         for (; head != NULL; head = head->hh.next) {
+            if (!head->is_leaking) continue;
+
             REENTRANT_PRINTF("  ~ alloc #1 (! %" PRIu64
                              " ms) -> [%ld bytes]: \n",
                              head->timestamp,
@@ -156,9 +159,12 @@ void jm_symbols_summary(const char *path) {
 
         jmAllocEntry *entry = NULL, *temp = NULL;
 
-        // clang-format off
+        /* clang-format off */
+
         HASH_ITER(hh, summary.entries, entry, temp)
             jm_symbols_alloc_delete_entry(entry);
+
+        /* clang-format on */
     }
 
     // REENTRANT_PRINTF("\n");
@@ -170,6 +176,7 @@ static void jm_symbols_alloc_add_entry(jmInst inst) {
     jmAllocEntry *entry = calloc(1, sizeof(jmAllocEntry));
 
     entry->key = inst.addr;
+    entry->is_leaking = true;
     entry->size = malloc_usable_size(inst.addr);
     entry->timestamp = inst.timestamp;
 
@@ -177,6 +184,8 @@ static void jm_symbols_alloc_add_entry(jmInst inst) {
 }
 
 static jmAllocEntry *jm_symbols_alloc_find_entry(void *key) {
+    if (key == NULL) return NULL;
+
     jmAllocEntry *entry = NULL;
 
     HASH_FIND_PTR(summary.entries, &key, entry);
@@ -185,6 +194,8 @@ static jmAllocEntry *jm_symbols_alloc_find_entry(void *key) {
 }
 
 static void jm_symbols_alloc_delete_entry(jmAllocEntry *entry) {
+    if (entry == NULL) return;
+
     HASH_DEL(summary.entries, entry);
 
     free(entry);
@@ -280,12 +291,12 @@ static void jm_symbols_parse_log(const char *path) {
 
             switch (inst.opcode) {
                 case JM_OPCODE_ALLOC:
-                    jm_symbols_alloc_add_entry(inst);
-
                     summary.stats.count[0]++;
                     summary.stats.total += malloc_usable_size(inst.addr);
 
                     alloc_ctx = inst.addr;
+
+                    jm_symbols_alloc_add_entry(inst);
 
                     break;
 
@@ -309,6 +320,8 @@ static void jm_symbols_parse_log(const char *path) {
                     summary.stats.total -= malloc_usable_size(inst.addr);
 
                     alloc_ctx = inst.addr;
+
+                    jm_symbols_alloc_find_entry(inst.addr)->is_leaking = false;
 
                     break;
 
