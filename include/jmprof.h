@@ -66,7 +66,7 @@
 
 /* Typedefs ===============================================================> */
 
-typedef enum jm_opcode_t_ {
+typedef enum jmOpcode {
     JM_OPCODE_UNKNOWN,
     JM_OPCODE_ALLOC          = 'a',
     JM_OPCODE_BACKTRACE      = 'b',
@@ -74,13 +74,13 @@ typedef enum jm_opcode_t_ {
     JM_OPCODE_MODULE         = 'm',
     JM_OPCODE_UPDATE_MODULES = 'u',
     JM_OPCODE_EXEC_PATH      = 'x'
-} jm_opcode_t;
+} jmOpcode;
 
 /* Public Function Prototypes =============================================> */
 
 /* (from src/backtrace.c) =================================================> */
 
-void jm_backtrace_unwind(bool is_alloc, const void *ptr);
+void jm_backtrace_unwind(bool is_alloc, const void *ptr, size_t size);
 
 /* (from src/preload.c) ===================================================> */
 

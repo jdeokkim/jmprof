@@ -155,7 +155,7 @@ void *calloc(size_t num, size_t size) {
         pthread_setspecific(calloc_key, &calloc_key);
 
         jm_tracker_update_mappings();
-        jm_backtrace_unwind(true, result);
+        jm_backtrace_unwind(true, result, num * size);
 
         pthread_setspecific(calloc_key, NULL);
     }
@@ -172,7 +172,7 @@ void *malloc(size_t size) {
         pthread_setspecific(malloc_key, &malloc_key);
 
         jm_tracker_update_mappings();
-        jm_backtrace_unwind(true, result);
+        jm_backtrace_unwind(true, result, size);
 
         pthread_setspecific(malloc_key, NULL);
     }
@@ -190,10 +190,10 @@ void *realloc(void *ptr, size_t new_size) {
 
         jm_tracker_update_mappings();
 
-        if ((ptr == NULL) && (new_size > 0)) 
-            jm_backtrace_unwind(true, result);
-        else if ((ptr != NULL) && (new_size == 0))
-            jm_backtrace_unwind(false, result);
+        if ((ptr != NULL) && (new_size == 0))
+            jm_backtrace_unwind(false, result, new_size);
+        else
+            jm_backtrace_unwind(true, result, new_size);
 
         pthread_setspecific(realloc_key, NULL);
     }
@@ -207,7 +207,7 @@ void free(void *ptr) {
     if (is_initialized && (pthread_getspecific(free_key) == NULL)) {
         pthread_setspecific(free_key, &free_key);
 
-        if (ptr != NULL) jm_backtrace_unwind(false, ptr);
+        if (ptr != NULL) jm_backtrace_unwind(false, ptr, 0);
 
         pthread_setspecific(free_key, NULL);
     }

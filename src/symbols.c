@@ -25,20 +25,39 @@
 #define _GNU_SOURCE
 
 #include <inttypes.h>
+#include <malloc.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <elfutils/libdwfl.h>
 
+#define HASH_DEBUG
+#include "uthash.h"
+
 #include "jmprof.h"
 
 /* Typedefs ===============================================================> */
 
-typedef struct jm_inst_t_ {
+typedef struct jmInst_ {
+    char opcode, ctx[MAX_BUFFER_SIZE];
     uint64_t timestamp;
-    signed char opcode;
-    uintptr_t ptr;
-} jm_inst_t;
+    void *addr;
+} jmInst;
+
+typedef struct jmAllocEntry_ {
+    void *key;
+    size_t size;
+    uint64_t timestamp;
+    UT_hash_handle hh;
+} jmAllocEntry;
+
+typedef struct jmSummary_ {
+    struct jmSummaryStats_ {
+        int count[2];
+        size_t total;
+    } stats;
+    jmAllocEntry *entries;
+} jmSummary;
 
 /* Constants ==============================================================> */
 
@@ -57,19 +76,48 @@ static pthread_mutex_t dwfl_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static Dwfl *dwfl;
 
+/* ========================================================================> */
+
+static jmSummary summary;
+
 /* Private Function Prototypes ============================================> */
 
-static void jm_symbols_parse(const char *path);
+static void jm_symbols_alloc_add_entry(jmInst inst);
+static void jm_symbols_alloc_delete_entry(jmAllocEntry *entry);
+
+static jmInst jm_symbols_build_inst(const char *buffer);
+static void jm_symbols_parse_log(const char *path);
 
 /* Public Functions =======================================================> */
 
 void jm_symbols_summary(const char *path) {
-    jm_symbols_parse(path);
+    jm_symbols_parse_log(path);
 
     REENTRANT_PRINTF("SUMMARY: \n");
 
+    REENTRANT_PRINTF("  %d allocs, %d frees (%ld bytes alloc-ed)\n",
+                     summary.stats.count[0],
+                     summary.stats.count[1],
+                     summary.stats.total);
+
     {
-        /* TODO: ... */
+        if (summary.stats.count[0] > 0) REENTRANT_PRINTF("\n");
+
+        jmAllocEntry *head = summary.entries;
+
+        for (; head != NULL; head = head->hh.next) {
+            REENTRANT_PRINTF("  ~ alloc #1 (@ %" PRIu64
+                             " ms) -> [%ld bytes]: \n",
+                             head->timestamp,
+                             head->size);
+
+            /* TODO: ... */
+        }
+
+        jmAllocEntry *entry = NULL, *temp = NULL;
+
+        HASH_ITER(hh, summary.entries, entry, temp)
+            jm_symbols_alloc_delete_entry(entry);
     }
 
     REENTRANT_PRINTF("\n");
@@ -77,7 +125,38 @@ void jm_symbols_summary(const char *path) {
 
 /* Private Function Prototypes ============================================> */
 
-static void jm_symbols_parse(const char *path) {
+static void jm_symbols_alloc_add_entry(jmInst inst) {
+    jmAllocEntry *entry = calloc(1, sizeof(jmAllocEntry));
+
+    entry->key = inst.addr;
+    entry->size = malloc_usable_size(inst.addr);
+    entry->timestamp = inst.timestamp;
+
+    HASH_ADD_PTR(summary.entries, key, entry);
+}
+
+static void jm_symbols_alloc_delete_entry(jmAllocEntry *entry) {
+    HASH_DEL(summary.entries, entry);
+
+    free(entry);
+}
+
+static jmInst jm_symbols_build_inst(const char *buffer) {
+    jmInst inst = { .opcode = JM_OPCODE_UNKNOWN };
+
+    (void) sscanf(buffer,
+                  "%" PRIu64 " %c %p %s",
+                  &inst.timestamp,
+                  &inst.opcode,
+                  &inst.addr,
+                  inst.ctx);
+
+    inst.ctx[strcspn(inst.ctx, "\r\n")] = '\0';
+
+    return inst;
+}
+
+static void jm_symbols_parse_log(const char *path) {
     pthread_mutex_lock(&dwfl_mutex);
 
     {
@@ -88,20 +167,14 @@ static void jm_symbols_parse(const char *path) {
         char buffer[MAX_BUFFER_SIZE], context[MAX_BUFFER_SIZE];
 
         while (fgets(buffer, sizeof buffer, fp) != NULL) {
-            buffer[strcspn(buffer, "\r\n")] = '\0';
-
-            jm_inst_t inst = { .opcode = JM_OPCODE_UNKNOWN };
-
-            (void) sscanf(buffer,
-                          "%" PRIu64 " %c %" PRIuPTR " %s",
-                          &inst.timestamp,
-                          &inst.opcode,
-                          &inst.ptr,
-                          context);
+            jmInst inst = jm_symbols_build_inst(buffer);
 
             switch (inst.opcode) {
                 case JM_OPCODE_ALLOC:
-                    /* TODO: ... */
+                    summary.stats.count[0]++;
+                    summary.stats.total += malloc_usable_size(inst.addr);
+
+                    jm_symbols_alloc_add_entry(inst);
 
                     break;
 
@@ -114,7 +187,8 @@ static void jm_symbols_parse(const char *path) {
                     break;
 
                 case JM_OPCODE_FREE:
-                    /* TODO: ... */
+                    summary.stats.count[1]++;
+                    summary.stats.total -= malloc_usable_size(inst.addr);
 
                     break;
 
@@ -125,23 +199,19 @@ static void jm_symbols_parse(const char *path) {
                         == 0)
                         continue;
 
-                    // TODO: `stderr`
                     (void) dwfl_report_elf(dwfl,
                                            context,
                                            context,
                                            -1,
-                                           (GElf_Addr) inst.ptr,
+                                           (GElf_Addr) inst.addr,
                                            false);
 
                     break;
 
                 case JM_OPCODE_UPDATE_MODULES:
-                    if (context[0] == '<') {
-                        dwfl_report_begin(dwfl);
-                    } else if (context[0] == '>') {
-                        // TODO: `stderr`
+                    if (context[0] == '<') dwfl_report_begin(dwfl);
+                    else if (context[0] == '>')
                         (void) dwfl_report_end(dwfl, NULL, NULL);
-                    }
 
                     break;
 
@@ -159,22 +229,3 @@ static void jm_symbols_parse(const char *path) {
 
     pthread_mutex_unlock(&dwfl_mutex);
 }
-
-/*
-    GElf_Addr elf_addr = (GElf_Addr) inst.ptr;
-
-    // TODO: `stderr`
-    Dwfl_Module *mod = dwfl_addrmodule(dwfl, elf_addr);
-
-    GElf_Addr mod_addr_start = 0, mod_addr_end = 0;
-
-    const char *mod_name = dwfl_module_info(
-        mod, NULL, &mod_addr_start, &mod_addr_end, NULL, NULL, NULL, NULL);
-
-    GElf_Sym sym_info;
-
-    GElf_Addr sym_offset = 0;
-
-    const char *sym_name = dwfl_module_addrinfo(
-        mod, elf_addr, &sym_offset, &sym_info, NULL, NULL, NULL);
-*/

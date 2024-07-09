@@ -37,24 +37,16 @@ static pthread_mutex_t unwind_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Public Functions =======================================================> */
 
-void jm_backtrace_unwind(bool is_alloc, const void *ptr) {
+void jm_backtrace_unwind(bool is_alloc, const void *ptr, size_t size) {
     pthread_mutex_lock(&unwind_mutex);
 
     {
-        jm_tracker_fprintf("%c 0x%jx\n",
+        jm_tracker_fprintf("%c 0x%jx %jd\n",
                            (is_alloc ? JM_OPCODE_ALLOC : JM_OPCODE_FREE),
-                           (uintptr_t) ptr);
+                           (uintptr_t) ptr,
+                           size);
 
-        /*
-
-        void *traces[MAX_BACKTRACE_COUNT];
-
-        int size = unw_backtrace(traces, MAX_BACKTRACE_COUNT);
-
-        for (int i = 0; i < size; i++)
-            jm_tracker_fprintf("%c 0x%jx\n", JM_OPCODE_BACKTRACE, traces[i]);
-        
-        */
+        /* TODO: ... */
     }
 
     pthread_mutex_unlock(&unwind_mutex);
