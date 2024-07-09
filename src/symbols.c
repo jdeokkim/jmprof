@@ -45,9 +45,18 @@ typedef struct jmInst_ {
 } jmInst;
 
 typedef struct jmBacktrace_ {
-    GElf_Addr addr, mod_offset;
-    char mod_name[MAX_BUFFER_SIZE];
-    char sym_name[MAX_IDENTIFIER_LENGTH];
+    GElf_Addr addr;
+    struct jmBacktraceSymbol_ {
+        char name[MAX_BUFFER_SIZE];
+    } sym;
+    struct jmBacktraceModule_ {
+        char name[MAX_BUFFER_SIZE];
+        GElf_Addr offset;
+    } mod;
+    struct jmBacktraceSrc_ {
+        char name[MAX_BUFFER_SIZE];
+        int line, column;
+    } src;
 } jmBacktrace;
 
 typedef struct jmAllocEntry_ {
@@ -108,7 +117,9 @@ static void jm_symbols_parse_log(const char *path);
 void jm_symbols_summary(const char *path) {
     jm_symbols_parse_log(path);
 
-    REENTRANT_PRINTF("> %s\n\n", summary.exec_path);
+    REENTRANT_PRINTF("jmprof v" JMPROF_VERSION " by " JMPROF_AUTHOR "\n\n"
+                     "> %s\n\n",
+                     summary.exec_path);
 
     REENTRANT_PRINTF("SUMMARY: \n"
                      "  %d allocs, %d frees (%ld bytes alloc-ed)\n",
@@ -130,22 +141,27 @@ void jm_symbols_summary(const char *path) {
             for (int i = 0; i < head->bt_top; i++) {
                 jmBacktrace bt = head->traces[i];
 
-                REENTRANT_PRINTF("    @ 0x%jx: %s\n"
-                                 "      (in %s @ 0x%jx)\n",
+                REENTRANT_PRINTF("    @ 0x%jx: %s (%s:%d:%d)\n"
+                                 "      (in %s)\n",
                                  bt.addr,
-                                 bt.sym_name,
-                                 bt.mod_name,
-                                 bt.mod_offset);
+                                 bt.sym.name,
+                                 bt.src.name,
+                                 bt.src.line,
+                                 bt.src.column,
+                                 bt.mod.name);
             }
+
+            REENTRANT_PRINTF("\n");
         }
 
         jmAllocEntry *entry = NULL, *temp = NULL;
 
+        // clang-format off
         HASH_ITER(hh, summary.entries, entry, temp)
-        jm_symbols_alloc_delete_entry(entry);
+            jm_symbols_alloc_delete_entry(entry);
     }
 
-    REENTRANT_PRINTF("\n");
+    // REENTRANT_PRINTF("\n");
 }
 
 /* Private Function Prototypes ============================================> */
@@ -186,23 +202,48 @@ static jmBacktrace jm_symbols_build_backtrace(void *ptr) {
 
     Dwfl_Module *mod = dwfl_addrmodule(dwfl, bt.addr);
 
-    GElf_Addr mod_addr_start = 0, mod_addr_end = 0;
+    {
+        GElf_Addr mod_addr_start = 0, mod_addr_end = 0;
 
-    const char *mod_name = dwfl_module_info(
-        mod, NULL, &mod_addr_start, &mod_addr_end, NULL, NULL, NULL, NULL);
+        const char *mod_name = dwfl_module_info(
+            mod, NULL, &mod_addr_start, &mod_addr_end, NULL, NULL, NULL, NULL);
 
-    bt.mod_offset = mod_addr_start;
+        bt.mod.offset = mod_addr_start;
 
-    (void) strcpy(bt.mod_name, mod_name);
+        (void) strcpy(bt.mod.name, mod_name);
+    }
 
-    GElf_Sym sym_info;
+    {
+        GElf_Sym sym_info;
 
-    GElf_Addr sym_offset = 0;
+        GElf_Addr sym_offset = 0;
 
-    const char *sym_name = dwfl_module_addrinfo(
-        mod, bt.addr, &sym_offset, &sym_info, NULL, NULL, NULL);
+        const char *sym_name = dwfl_module_addrinfo(
+            mod, bt.addr, &sym_offset, &sym_info, NULL, NULL, NULL);
 
-    (void) strcpy(bt.sym_name, sym_name);
+        (void) strcpy(bt.sym.name, sym_name);
+    }
+
+    {
+        Dwarf_Addr bias = 0;
+
+        Dwarf_Die *die = dwfl_module_addrdie(mod, bt.addr, &bias);
+
+        if (die != NULL) {
+            Dwarf_Line *src = dwarf_getsrc_die(die, bt.addr - bias);
+
+            if (src != NULL) {
+                const char *src_name = dwarf_linesrc(src, NULL, NULL);
+
+                if (src_name == NULL) src_name = "??";
+
+                (void) strcpy(bt.src.name, src_name);
+            }
+
+            (void) dwarf_lineno(src, &bt.src.line);
+            (void) dwarf_linecol(src, &bt.src.column);
+        }
+    }
 
     return bt;
 }

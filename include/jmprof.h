@@ -39,6 +39,11 @@
 
 // clang-format off
 
+#define JMPROF_AUTHOR        "Jaedeok Kim (jdeokkim@protonmail.com)"
+#define JMPROF_VERSION       "0.0.1"
+
+/* ========================================================================> */
+
 #define REENTRANT_PRINTF     printf_
 #define REENTRANT_VPRINTF    vprintf_
 #define REENTRANT_SPRINTF    sprintf_
@@ -48,22 +53,16 @@
 
 /* ========================================================================> */
 
-#define JM_INIT_MESSAGE \
+#define INIT_MESSAGE \
     "<===============================================================\n"
 
-#define JM_DEINIT_MESSAGE \
+#define DEINIT_MESSAGE \
     "===============================================================>\n\n"
 
 /* ========================================================================> */
 
-#define JM_INIT_ONCE 
-#define JM_READ_ONLY 
-
-/* ========================================================================> */
-
-#define MAX_BACKTRACE_COUNT    32
-#define MAX_BUFFER_SIZE        8192
-#define MAX_IDENTIFIER_LENGTH  128
+#define MAX_BACKTRACE_COUNT  32
+#define MAX_BUFFER_SIZE      2048
 
 // clang-format on
 
@@ -87,8 +86,8 @@ void jm_backtrace_unwind(bool is_alloc, const void *ptr, size_t size);
 
 /* (from src/preload.c) ===================================================> */
 
-JM_INIT_ONCE void jm_preload_init(void);
-JM_INIT_ONCE void jm_preload_deinit(void);
+void jm_preload_init(void);
+void jm_preload_deinit(void);
 
 /* (from src/symbols.c) ===================================================> */
 
@@ -96,8 +95,8 @@ void jm_symbols_summary(const char *path);
 
 /* (from src/tracker.c) ===================================================> */
 
-JM_INIT_ONCE void jm_tracker_init(void);
-JM_INIT_ONCE void jm_tracker_deinit(void);
+void jm_tracker_init(void);
+void jm_tracker_deinit(void);
 
 void jm_tracker_fprintf(const char* format, ...);
 void jm_tracker_set_dirty(bool value);

@@ -52,8 +52,8 @@ static pthread_mutex_t tracker_fd_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* ========================================================================> */
 
-JM_READ_ONLY static char exec_path[PATH_MAX + 1];
-JM_READ_ONLY static char log_path[PATH_MAX + 1];
+static char exec_path[PATH_MAX + 1];
+static char log_path[PATH_MAX + 1];
 
 /* ========================================================================> */
 
@@ -71,11 +71,11 @@ dl_iterate_phdr_callback(struct dl_phdr_info *info, size_t size, void *data);
 
 /* Public Functions =======================================================> */
 
-JM_INIT_ONCE void jm_tracker_init(void) {
+void jm_tracker_init(void) {
     pthread_once(&tracker_init_once, jm_tracker_init_);
 }
 
-JM_INIT_ONCE void jm_tracker_deinit(void) {
+void jm_tracker_deinit(void) {
     pthread_once(&tracker_deinit_once, jm_tracker_deinit_);
 }
 
@@ -166,7 +166,7 @@ static void jm_tracker_init_(void) {
 
     jm_tracker_fprintf("%c 0x%jx %s\n", JM_OPCODE_EXEC_PATH, NULL, exec_path);
 
-    REENTRANT_PRINTF(JM_INIT_MESSAGE);
+    REENTRANT_PRINTF(INIT_MESSAGE);
 
     atexit(jm_tracker_deinit);
 }
@@ -174,7 +174,7 @@ static void jm_tracker_init_(void) {
 static void jm_tracker_deinit_(void) {
     jm_preload_deinit();
 
-    REENTRANT_PRINTF(JM_DEINIT_MESSAGE);
+    REENTRANT_PRINTF(DEINIT_MESSAGE);
 
     if (close(tracker_fd) == 0) jm_symbols_summary(log_path);
 }

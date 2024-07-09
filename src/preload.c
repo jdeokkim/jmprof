@@ -117,7 +117,7 @@ static void jm_preload_dlclose_deinit(void);
 
 /* Public Functions =======================================================> */
 
-JM_INIT_ONCE void jm_preload_init(void) {
+void jm_preload_init(void) {
     (void) pthread_once(&calloc_init_once, jm_preload_calloc_init);
     (void) pthread_once(&malloc_init_once, jm_preload_malloc_init);
     (void) pthread_once(&realloc_init_once, jm_preload_realloc_init);
@@ -130,7 +130,7 @@ JM_INIT_ONCE void jm_preload_init(void) {
     is_initialized = true;
 }
 
-JM_INIT_ONCE void jm_preload_deinit(void) {
+void jm_preload_deinit(void) {
     (void) pthread_once(&calloc_deinit_once, jm_preload_calloc_deinit);
     (void) pthread_once(&malloc_deinit_once, jm_preload_malloc_deinit);
     (void) pthread_once(&realloc_deinit_once, jm_preload_realloc_deinit);
