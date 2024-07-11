@@ -38,7 +38,9 @@ _COLOR_END = \033[m
 PROJECT_NAME = jmprof
 PROJECT_FULL_NAME = jdeokkim/jmprof
 
-PROJECT_PREFIX = ${_COLOR_BEGIN}${PROJECT_FULL_NAME}:${_COLOR_END}
+PROJECT_VERSION = "0.0.2-dev"
+
+LOG_PREFIX = ${_COLOR_BEGIN}${PROJECT_FULL_NAME}:${_COLOR_END}
 
 # ============================================================================>
 
@@ -74,43 +76,49 @@ CFLAGS += -Wall -Wno-unused-but-set-variable -Wno-unused-value \
 all: pre-build build post-build
 
 pre-build:
-	@printf "${PROJECT_PREFIX} Using: '${CC}' to build this project.\n"
+	@printf "${LOG_PREFIX} Using: '${CC}' to build this project.\n"
+	@sed -i "s/readonly version=.*/readonly version=\"${PROJECT_VERSION}\"/" \
+		${BINARY_PATH}/${PROJECT_NAME}
+	@sed -i "s/JMPROF_VERSION .*/JMPROF_VERSION       \"${PROJECT_VERSION}\"/" \
+		${INCLUDE_PATH}/jmprof.h
 
 build: ${TARGETS}
 
 .c.o:
-	@printf "${PROJECT_PREFIX} Compiling: $@ (from $<)\n"
+	@printf "${LOG_PREFIX} Compiling: $@ (from $<)\n"
 	@${CC} -c $< -o $@ ${CFLAGS}
 
 ${TARGETS}: ${OBJECTS}
 	@mkdir -p ${LIBRARY_PATH}
-	@printf "${PROJECT_PREFIX} Linking: ${TARGETS}\n"
+	@printf "${LOG_PREFIX} Linking: ${TARGETS}\n"
 	@${CC} ${OBJECTS} -o ${TARGETS} ${LDFLAGS} ${LDLIBS}
 
 post-build:
-	@printf "${PROJECT_PREFIX} Build complete.\n"
+	@printf "${LOG_PREFIX} Build complete.\n"
+
+fresh: clean all install
 
 superuser:
 	@if [ "$(shell id -u)" -ne 0 ]; then                       \
-		printf "${PROJECT_PREFIX} You must be superuser to ";  \
+		printf "${LOG_PREFIX} You must be superuser to ";  \
 		printf "install or uninstall this library.\n";         \
 		exit 1;                                                \
 	fi
 
 install: superuser
-	@printf "${PROJECT_PREFIX} Installing: "
+	@printf "${LOG_PREFIX} Installing: "
 	@printf "${PREFIX}/${BINARY_PATH}/${PROJECT_NAME}\n"
 	@install -m755 ${BINARY_PATH}/${PROJECT_NAME} \
 		${PREFIX}/${BINARY_PATH}/${PROJECT_NAME}
-	@printf "${PROJECT_PREFIX} Installing: ${PREFIX}/${TARGETS}\n"
+	@printf "${LOG_PREFIX} Installing: ${PREFIX}/${TARGETS}\n"
 	@install -m644 ${TARGETS} ${PREFIX}/${TARGETS} && ldconfig
 
 uninstall: superuser
-	@printf "${PROJECT_PREFIX} Uninstalling: ${PREFIX}/bin/${PROJECT_NAME}\n"
+	@printf "${LOG_PREFIX} Uninstalling: ${PREFIX}/bin/${PROJECT_NAME}\n"
 	@rm -f ${PREFIX}/bin/${PROJECT_NAME}
-	@printf "${PROJECT_PREFIX} Uninstalling: ${PREFIX}/${TARGETS}\n"
+	@printf "${LOG_PREFIX} Uninstalling: ${PREFIX}/${TARGETS}\n"
 	@rm -f ${PREFIX}/${TARGETS}
 
 clean:
-	@printf "${PROJECT_PREFIX} Cleaning up.\n"
+	@printf "${LOG_PREFIX} Cleaning up.\n"
 	@rm -f ${LIBRARY_PATH}/*.so ${SOURCE_PATH}/*.o

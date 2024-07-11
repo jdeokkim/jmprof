@@ -100,7 +100,10 @@ void jm_tracker_fprintf(const char *format, ...) {
         */
         (void) REENTRANT_SNPRINTF(buffer, len + 1, "%" PRIu64 " ", stm_now());
 
-        len += REENTRANT_VSNPRINTF(buffer + len, MAX_BUFFER_SIZE, format, args);
+        len += REENTRANT_VSNPRINTF(buffer + len,
+                                   MAX_BUFFER_SIZE - (len + 1),
+                                   format,
+                                   args);
 
         write(tracker_fd, buffer, len);
 
@@ -140,7 +143,7 @@ void jm_tracker_update_mappings(void) {
 
 static void jm_tracker_init_(void) {
     stm_setup();
-    
+
     jm_preload_init();
 
     unsetenv("LD_PRELOAD");
@@ -160,9 +163,7 @@ static void jm_tracker_init_(void) {
                               basename(exec_path),
                               (intmax_t) getpid());
 
-    tracker_fd = open(log_path,
-                      O_CLOEXEC | O_CREAT | O_WRONLY,
-                      (mode_t) 0644);
+    tracker_fd = open(log_path, O_CLOEXEC | O_CREAT | O_WRONLY, (mode_t) 0644);
 
     jm_tracker_fprintf("%c 0x%jx %s\n", JM_OPCODE_EXEC_PATH, NULL, exec_path);
 

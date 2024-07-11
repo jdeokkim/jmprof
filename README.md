@@ -11,6 +11,8 @@ A tiny, experimental heap profiler for GNU/Linux.
 - elfutils-dev(el) version 0.190+
 - libunwind-dev(el) version 1.8.1+
 
+<!-- - libsanitizer-devel 13.2.0+ -->
+
 ```console
 $ sudo xbps-install base-devel elfutils-devel libunwind-devel
 ```

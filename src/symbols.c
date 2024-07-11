@@ -62,7 +62,7 @@ typedef struct jmBacktrace_ {
 typedef struct jmAllocEntry_ {
     void *key;
     bool is_leaking;
-    size_t size, bt_top;
+    size_t size, tc;
     uint64_t timestamp;
     jmBacktrace traces[MAX_BACKTRACE_COUNT];
     UT_hash_handle hh;
@@ -141,7 +141,7 @@ void jm_symbols_summary(const char *path) {
                              head->timestamp,
                              head->size);
 
-            for (int i = 0; i < head->bt_top; i++) {
+            for (int i = 0; i < head->tc; i++) {
                 jmBacktrace bt = head->traces[i];
 
                 REENTRANT_PRINTF("    @ 0x%jx: %s (%s:%d:%d)\n"
@@ -203,7 +203,7 @@ static void jm_symbols_alloc_delete_entry(jmAllocEntry *entry) {
 
 static void jm_symbols_alloc_push_backtrace(jmAllocEntry *entry,
                                             jmBacktrace bt) {
-    entry->traces[entry->bt_top++] = bt;
+    entry->traces[entry->tc++] = bt;
 }
 
 /* ========================================================================> */
