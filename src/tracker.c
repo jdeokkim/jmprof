@@ -48,6 +48,8 @@ static pthread_once_t tracker_deinit_once = PTHREAD_ONCE_INIT;
 /* ========================================================================> */
 
 static pthread_mutex_t is_dirty_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t is_disabled_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 static pthread_mutex_t tracker_fd_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* ========================================================================> */
@@ -58,6 +60,7 @@ static char log_path[PATH_MAX + 1];
 /* ========================================================================> */
 
 static bool is_dirty = true;
+static bool is_disabled = false;
 
 static int tracker_fd = -1;
 
@@ -65,6 +68,14 @@ static int tracker_fd = -1;
 
 static void jm_tracker_init_(void);
 static void jm_tracker_deinit_(void);
+
+/* ========================================================================> */
+
+static void jm_tracker_atfork_prepare(void);
+static void jm_tracker_atfork_parent(void);
+static void jm_tracker_atfork_child(void);
+
+/* ========================================================================> */
 
 static int
 dl_iterate_phdr_callback(struct dl_phdr_info *info, size_t size, void *data);
@@ -77,6 +88,14 @@ void jm_tracker_init(void) {
 
 void jm_tracker_deinit(void) {
     pthread_once(&tracker_deinit_once, jm_tracker_deinit_);
+}
+
+void jm_tracker_disable(void) {
+    pthread_mutex_lock(&is_disabled_mutex);
+
+    is_disabled = true;
+
+    pthread_mutex_unlock(&is_disabled_mutex);
 }
 
 /* ========================================================================> */
@@ -146,7 +165,13 @@ static void jm_tracker_init_(void) {
 
     jm_preload_init();
 
-    unsetenv("LD_PRELOAD");
+    // (void) atexit(jm_tracker_deinit);
+
+    (void) pthread_atfork(
+        jm_tracker_atfork_prepare,
+        jm_tracker_atfork_parent, 
+        jm_tracker_atfork_child
+    );
 
     if (readlink("/proc/self/exe", exec_path, PATH_MAX) == -1)
         REENTRANT_SNPRINTF(exec_path, sizeof "unknown", "unknown");
@@ -166,19 +191,34 @@ static void jm_tracker_init_(void) {
     tracker_fd = open(log_path, O_CLOEXEC | O_CREAT | O_WRONLY, (mode_t) 0644);
 
     jm_tracker_fprintf("%c 0x%jx %s\n", JM_OPCODE_EXEC_PATH, NULL, exec_path);
-
-    REENTRANT_PRINTF(INIT_MESSAGE);
-
-    atexit(jm_tracker_deinit);
 }
 
 static void jm_tracker_deinit_(void) {
     jm_preload_deinit();
 
-    REENTRANT_PRINTF(DEINIT_MESSAGE);
+    if (close(tracker_fd) == 0) {
+        REENTRANT_PRINTF(SEPARATOR_MESSAGE);
 
-    if (close(tracker_fd) == 0) jm_symbols_summary(log_path);
+        jm_symbols_summary(log_path);
+    }
 }
+
+/* ========================================================================> */
+
+static void jm_tracker_atfork_prepare(void) {
+    // TODO: ...
+}
+
+static void jm_tracker_atfork_parent(void) {
+    // TODO: ...
+    abort();
+}
+
+static void jm_tracker_atfork_child(void) {
+    // TODO: ...
+}
+
+/* ========================================================================> */
 
 static int
 dl_iterate_phdr_callback(struct dl_phdr_info *info, size_t size, void *data) {

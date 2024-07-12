@@ -25,6 +25,7 @@
 #define _GNU_SOURCE
 
 #include <stddef.h>
+#include <stdlib.h>
 
 #include <dlfcn.h>
 #include <unistd.h>
@@ -59,25 +60,8 @@ static jm_libc_dlclose *libc_dlclose;
 
 /* ========================================================================> */
 
-static pthread_once_t calloc_init_once = PTHREAD_ONCE_INIT;
-static pthread_once_t calloc_deinit_once = PTHREAD_ONCE_INIT;
-
-static pthread_once_t malloc_init_once = PTHREAD_ONCE_INIT;
-static pthread_once_t malloc_deinit_once = PTHREAD_ONCE_INIT;
-
-static pthread_once_t realloc_init_once = PTHREAD_ONCE_INIT;
-static pthread_once_t realloc_deinit_once = PTHREAD_ONCE_INIT;
-
-static pthread_once_t free_init_once = PTHREAD_ONCE_INIT;
-static pthread_once_t free_deinit_once = PTHREAD_ONCE_INIT;
-
-/* ========================================================================> */
-
-static pthread_once_t dlopen_init_once = PTHREAD_ONCE_INIT;
-static pthread_once_t dlopen_deinit_once = PTHREAD_ONCE_INIT;
-
-static pthread_once_t dlclose_init_once = PTHREAD_ONCE_INIT;
-static pthread_once_t dlclose_deinit_once = PTHREAD_ONCE_INIT;
+static pthread_once_t preload_init_once = PTHREAD_ONCE_INIT;
+static pthread_once_t preload_deinit_once = PTHREAD_ONCE_INIT;
 
 /* ========================================================================> */
 
@@ -92,6 +76,11 @@ static pthread_key_t free_key;
 static bool is_initialized = true;
 
 /* Private Function Prototypes ============================================> */
+
+static void jm_preload_init_(void);
+static void jm_preload_deinit_(void);
+
+/* ========================================================================> */
 
 static void jm_preload_calloc_init(void);
 static void jm_preload_calloc_deinit(void);
@@ -118,29 +107,11 @@ static void jm_preload_dlclose_deinit(void);
 /* Public Functions =======================================================> */
 
 void jm_preload_init(void) {
-    (void) pthread_once(&calloc_init_once, jm_preload_calloc_init);
-    (void) pthread_once(&malloc_init_once, jm_preload_malloc_init);
-    (void) pthread_once(&realloc_init_once, jm_preload_realloc_init);
-
-    (void) pthread_once(&free_init_once, jm_preload_free_init);
-
-    (void) pthread_once(&dlopen_init_once, jm_preload_dlopen_init);
-    (void) pthread_once(&dlclose_init_once, jm_preload_dlclose_init);
-
-    is_initialized = true;
+    pthread_once(&preload_init_once, jm_preload_init_);
 }
 
 void jm_preload_deinit(void) {
-    (void) pthread_once(&calloc_deinit_once, jm_preload_calloc_deinit);
-    (void) pthread_once(&malloc_deinit_once, jm_preload_malloc_deinit);
-    (void) pthread_once(&realloc_deinit_once, jm_preload_realloc_deinit);
-
-    (void) pthread_once(&free_deinit_once, jm_preload_free_deinit);
-
-    (void) pthread_once(&dlopen_deinit_once, jm_preload_dlopen_deinit);
-    (void) pthread_once(&dlclose_deinit_once, jm_preload_dlclose_deinit);
-
-    is_initialized = false;
+    pthread_once(&preload_deinit_once, jm_preload_deinit_);
 }
 
 /* ========================================================================> */
@@ -243,6 +214,36 @@ PRINTF_VISIBILITY void putchar_(char c) {
 }
 
 /* Private Functions =====================================================> */
+
+static void jm_preload_init_(void) {
+    jm_preload_calloc_init();
+    jm_preload_malloc_init();
+    jm_preload_realloc_init();
+
+    jm_preload_free_init();
+
+    jm_preload_dlopen_init();
+    jm_preload_dlclose_init();
+
+    unsetenv("LD_PRELOAD");
+
+    is_initialized = true;
+}
+
+static void jm_preload_deinit_(void) {
+    jm_preload_calloc_deinit();
+    jm_preload_malloc_deinit();
+    jm_preload_realloc_deinit();
+
+    jm_preload_free_deinit();
+
+    jm_preload_dlopen_deinit();
+    jm_preload_dlclose_deinit();
+
+    is_initialized = false;
+}
+
+/* ========================================================================> */
 
 static void jm_preload_calloc_init(void) {
     pthread_key_create(&calloc_key, NULL);
