@@ -55,7 +55,6 @@ static pthread_mutex_t tracker_fd_mutex = PTHREAD_MUTEX_INITIALIZER;
 /* ========================================================================> */
 
 static char exec_path[PATH_MAX + 1];
-static char log_path[PATH_MAX + 1];
 
 /* ========================================================================> */
 
@@ -68,6 +67,12 @@ static int tracker_fd = -1;
 
 static void jm_tracker_init_(void);
 static void jm_tracker_deinit_(void);
+
+/* ========================================================================> */
+
+static void jm_tracker_atfork_prepare(void);
+static void jm_tracker_atfork_parent(void);
+static void jm_tracker_atfork_child(void);
 
 /* ========================================================================> */
 
@@ -102,16 +107,18 @@ void jm_tracker_fprintf(const char *format, ...) {
 
         va_start(args, format);
 
+        uint64_t timestamp = stm_now();
+
         char buffer[MAX_BUFFER_SIZE];
 
         // `<TIMESTAMP> <OPERATION> [...]`
-        int len = REENTRANT_SNPRINTF(NULL, 0, "%" PRIu64 " ", stm_now());
+        int len = REENTRANT_SNPRINTF(NULL, 0, "%" PRIu64 " ", timestamp);
 
         /*
             NOTE: The return value of `snprintf()` is the number of bytes 
             that would be written, not including the null terminator.
         */
-        (void) REENTRANT_SNPRINTF(buffer, len + 1, "%" PRIu64 " ", stm_now());
+        (void) REENTRANT_SNPRINTF(buffer, len + 1, "%" PRIu64 " ", timestamp);
 
         len += REENTRANT_VSNPRINTF(buffer + len,
                                    MAX_BUFFER_SIZE - (len + 1),
@@ -161,34 +168,41 @@ static void jm_tracker_init_(void) {
 
     assert(atexit(jm_tracker_deinit) == 0);
 
+    assert(pthread_atfork(jm_tracker_atfork_prepare,
+                          jm_tracker_atfork_parent,
+                          jm_tracker_atfork_child)
+           == 0);
+
     if (readlink("/proc/self/exe", exec_path, PATH_MAX) == -1)
         REENTRANT_SNPRINTF(exec_path, sizeof "unknown", "unknown");
 
-    int len = REENTRANT_SNPRINTF(NULL,
-                                 0,
-                                 "jmprof.%s.%jd",
-                                 basename(exec_path),
-                                 (intmax_t) getpid());
+    const char *fifo_path = getenv("FIFO");
 
-    (void) REENTRANT_SNPRINTF(log_path,
-                              len,
-                              "jmprof.%s.%jd",
-                              basename(exec_path),
-                              (intmax_t) getpid());
-
-    tracker_fd = open(log_path, O_CLOEXEC | O_CREAT | O_WRONLY, (mode_t) 0644);
+    tracker_fd = open(fifo_path, O_CLOEXEC | O_CREAT | O_WRONLY, (mode_t) 0644);
 
     jm_tracker_fprintf("%c 0x%jx %s\n", JM_OPCODE_EXEC_PATH, NULL, exec_path);
+
+    assert(tracker_fd > 0);
 }
 
 static void jm_tracker_deinit_(void) {
     jm_preload_deinit();
 
-    if (close(tracker_fd) == 0) {
-        REENTRANT_PRINTF(SEPARATOR_MESSAGE);
+    assert(close(tracker_fd) == 0);
+}
 
-        jm_symbols_summary(log_path);
-    }
+/* ========================================================================> */
+
+static void jm_tracker_atfork_prepare(void) {
+    // TODO: ...
+}
+
+static void jm_tracker_atfork_parent(void) {
+    // TODO: ...
+}
+
+static void jm_tracker_atfork_child(void) {
+    // TODO: ...
 }
 
 /* ========================================================================> */

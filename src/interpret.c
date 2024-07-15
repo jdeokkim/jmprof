@@ -25,9 +25,6 @@
 #define _GNU_SOURCE
 
 #include <inttypes.h>
-#include <malloc.h>
-#include <stdio.h>
-#include <string.h>
 
 #include <elfutils/libdwfl.h>
 
@@ -41,6 +38,7 @@
 typedef struct jmInst_ {
     char opcode, ctx[MAX_BUFFER_SIZE];
     uint64_t timestamp;
+    size_t alloc_size;
     void *addr;
 } jmInst;
 
@@ -62,14 +60,15 @@ typedef struct jmBacktrace_ {
 typedef struct jmAllocEntry_ {
     void *key;
     bool is_leaking;
-    size_t size, tc;
+    size_t alloc_size;
+    size_t trace_count;
     uint64_t timestamp;
     jmBacktrace traces[MAX_BACKTRACE_COUNT];
     UT_hash_handle hh;
 } jmAllocEntry;
 
 typedef struct jmSummary_ {
-    char exec_path[MAX_BUFFER_SIZE];
+    char path[MAX_BUFFER_SIZE];
     struct jmSummaryStats_ {
         int count[2];
         size_t total;
@@ -88,10 +87,6 @@ const Dwfl_Callbacks dwfl_callbacks = {
 
 /* Private Variables ======================================================> */
 
-static pthread_mutex_t dwfl_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-/* ========================================================================> */
-
 static Dwfl *dwfl;
 
 /* ========================================================================> */
@@ -103,7 +98,6 @@ static jmSummary summary;
 static void jm_symbols_alloc_add_entry(jmInst inst);
 static jmAllocEntry *jm_symbols_alloc_find_entry(void *key);
 static void jm_symbols_alloc_delete_entry(jmAllocEntry *entry);
-
 static void jm_symbols_alloc_push_backtrace(jmAllocEntry *entry,
                                             jmBacktrace bt);
 
@@ -111,51 +105,68 @@ static void jm_symbols_alloc_push_backtrace(jmAllocEntry *entry,
 
 static jmBacktrace jm_symbols_build_backtrace(void *ptr);
 static jmInst jm_symbols_build_inst(const char *buffer);
-static void jm_symbols_parse_log(const char *path);
+static void jm_symbols_parse_log(FILE *fp);
 
 /* Public Functions =======================================================> */
 
-void jm_symbols_summary(const char *path) {
-    jm_symbols_parse_log(path);
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "%s: usage: %s <path>\n", argv[0], argv[0]);
 
-    REENTRANT_PRINTF("jmprof v" JMPROF_VERSION " by " JMPROF_AUTHOR "\n\n"
-                     "> %s\n\n",
-                     summary.exec_path);
+        return 1;
+    }
 
-    REENTRANT_PRINTF("SUMMARY: \n"
-                     "  %d allocs, %d frees (%ld bytes alloc-ed)\n",
-                     summary.stats.count[0],
-                     summary.stats.count[1],
-                     summary.stats.total);
+    FILE *fp = fopen(argv[1], "r");
+
+    if (fp == NULL) {
+        fprintf(stderr,
+                "%s: error: unable to open file '%s'\n",
+                argv[0],
+                argv[1]);
+
+        return 1;
+    }
+
+    jm_symbols_parse_log(fp);
+
+    printf("jmprof v" JMPROF_VERSION " by " JMPROF_AUTHOR "\n\n"
+           "> %s\n\n",
+           summary.path);
+
+    printf("SUMMARY: \n"
+           "  %d allocs, %d frees (%ld bytes alloc-ed)\n",
+           summary.stats.count[0],
+           summary.stats.count[1],
+           summary.stats.total);
 
     {
-        if (summary.stats.count[0] > 0) REENTRANT_PRINTF("\n");
+        if (summary.stats.count[0] > 0) printf("\n");
 
         jmAllocEntry *head = summary.entries;
 
         for (; head != NULL; head = head->hh.next) {
             if (!head->is_leaking) continue;
 
-            REENTRANT_PRINTF("  ~ alloc #1 (! %" PRIu64
-                             " ms) -> [%ld bytes]: \n",
-                             head->timestamp,
-                             head->size);
+            printf("  ~ alloc #1 (! %" PRIu64 " ms) -> [%ld bytes]: \n",
+                   head->timestamp,
+                   head->alloc_size);
 
-            for (int i = 0; i < head->tc; i++) {
+            for (int i = 0; i < head->trace_count; i++) {
                 jmBacktrace bt = head->traces[i];
 
-                REENTRANT_PRINTF("    @ 0x%jx: %s (%s:%d:%d)\n"
-                                 "      (in %s)\n",
-                                 bt.addr,
-                                 bt.sym.name,
-                                 bt.src.name,
-                                 bt.src.line,
-                                 bt.src.column,
-                                 bt.mod.name);
+                printf("    @ 0x%jx: %s (%s:%d:%d)\n"
+                       "      (in %s)\n",
+                       bt.addr,
+                       bt.sym.name,
+                       bt.src.name,
+                       bt.src.line,
+                       bt.src.column,
+                       bt.mod.name);
             }
 
-            REENTRANT_PRINTF("\n");
+            printf("\n");
         }
+
         /* clang-format off */
 
 /* ========================================================================> */
@@ -168,7 +179,9 @@ void jm_symbols_summary(const char *path) {
         /* clang-format on */
     }
 
-    // REENTRANT_PRINTF("\n");
+    fclose(fp);
+
+    return 0;
 }
 
 /* Private Function Prototypes ============================================> */
@@ -177,9 +190,10 @@ static void jm_symbols_alloc_add_entry(jmInst inst) {
     jmAllocEntry *entry = calloc(1, sizeof(jmAllocEntry));
 
     entry->key = inst.addr;
+
     entry->is_leaking = true;
-    entry->size = malloc_usable_size(inst.addr);
     entry->timestamp = inst.timestamp;
+    entry->alloc_size = inst.alloc_size;
 
     HASH_ADD_PTR(summary.entries, key, entry);
 }
@@ -204,7 +218,7 @@ static void jm_symbols_alloc_delete_entry(jmAllocEntry *entry) {
 
 static void jm_symbols_alloc_push_backtrace(jmAllocEntry *entry,
                                             jmBacktrace bt) {
-    entry->traces[entry->tc++] = bt;
+    entry->traces[entry->trace_count++] = bt;
 }
 
 /* ========================================================================> */
@@ -222,6 +236,8 @@ static jmBacktrace jm_symbols_build_backtrace(void *ptr) {
 
         bt.mod.offset = mod_addr_start;
 
+        if (mod_name == NULL) mod_name = "??";
+
         (void) strcpy(bt.mod.name, mod_name);
     }
 
@@ -232,6 +248,8 @@ static jmBacktrace jm_symbols_build_backtrace(void *ptr) {
 
         const char *sym_name = dwfl_module_addrinfo(
             mod, bt.addr, &sym_offset, &sym_info, NULL, NULL, NULL);
+
+        if (sym_name == NULL) sym_name = "??";
 
         (void) strcpy(bt.sym.name, sym_name);
     }
@@ -270,96 +288,83 @@ static jmInst jm_symbols_build_inst(const char *buffer) {
                   &inst.addr,
                   inst.ctx);
 
+    if (inst.opcode == JM_OPCODE_ALLOC)
+        inst.alloc_size = (size_t) strtol(inst.ctx, NULL, 10);
+
     inst.ctx[strcspn(inst.ctx, "\r\n")] = '\0';
 
     return inst;
 }
 
-static void jm_symbols_parse_log(const char *path) {
-    pthread_mutex_lock(&dwfl_mutex);
+static void jm_symbols_parse_log(FILE *fp) {
+    dwfl = dwfl_begin(&dwfl_callbacks);
 
-    {
-        dwfl = dwfl_begin(&dwfl_callbacks);
+    char buffer[MAX_BUFFER_SIZE];
 
-        FILE *fp = fopen(path, "r");
+    void *alloc_ctx = NULL;
 
-        char buffer[MAX_BUFFER_SIZE];
+    while (fgets(buffer, sizeof buffer, fp) != NULL) {
+        jmInst inst = jm_symbols_build_inst(buffer);
 
-        void *alloc_ctx = NULL;
+        switch (inst.opcode) {
+            case JM_OPCODE_ALLOC:
+                summary.stats.count[0]++;
+                summary.stats.total += inst.alloc_size;
 
-        while (fgets(buffer, sizeof buffer, fp) != NULL) {
-            jmInst inst = jm_symbols_build_inst(buffer);
+                alloc_ctx = inst.addr;
 
-            switch (inst.opcode) {
-                case JM_OPCODE_ALLOC:
-                    summary.stats.count[0]++;
-                    summary.stats.total += malloc_usable_size(inst.addr);
+                jm_symbols_alloc_add_entry(inst);
 
-                    alloc_ctx = inst.addr;
+                break;
 
-                    jm_symbols_alloc_add_entry(inst);
+            case JM_OPCODE_BACKTRACE:
+                assert(alloc_ctx != NULL);
 
-                    break;
+                jm_symbols_alloc_push_backtrace(jm_symbols_alloc_find_entry(
+                                                    alloc_ctx),
+                                                jm_symbols_build_backtrace(
+                                                    inst.addr));
 
-                case JM_OPCODE_BACKTRACE:
-                    assert(alloc_ctx != NULL);
+                break;
 
-                    jm_symbols_alloc_push_backtrace(jm_symbols_alloc_find_entry(
-                                                        alloc_ctx),
-                                                    jm_symbols_build_backtrace(
-                                                        inst.addr));
+            case JM_OPCODE_EXEC_PATH:
+                (void) strcpy(summary.path, inst.ctx);
 
-                    break;
+                break;
 
-                case JM_OPCODE_EXEC_PATH:
-                    (void) strcpy(summary.exec_path, inst.ctx);
+            case JM_OPCODE_FREE:
+                summary.stats.count[1]++;
+                summary.stats.total -= inst.alloc_size;
 
-                    break;
+                alloc_ctx = inst.addr;
 
-                case JM_OPCODE_FREE:
-                    summary.stats.count[1]++;
-                    summary.stats.total -= malloc_usable_size(inst.addr);
+                jm_symbols_alloc_find_entry(inst.addr)->is_leaking = false;
 
-                    alloc_ctx = inst.addr;
+                break;
 
-                    jm_symbols_alloc_find_entry(inst.addr)->is_leaking = false;
+            case JM_OPCODE_MODULE:
+                if (strncmp(inst.ctx, "linux-vdso.so", sizeof "linux-vdso.so")
+                    == 0)
+                    continue;
 
-                    break;
+                (void) dwfl_report_elf(
+                    dwfl, inst.ctx, inst.ctx, -1, (GElf_Addr) inst.addr, false);
 
-                case JM_OPCODE_MODULE:
-                    if (strncmp(inst.ctx,
-                                "linux-vdso.so",
-                                sizeof "linux-vdso.so")
-                        == 0)
-                        continue;
+                break;
 
-                    (void) dwfl_report_elf(dwfl,
-                                           inst.ctx,
-                                           inst.ctx,
-                                           -1,
-                                           (GElf_Addr) inst.addr,
-                                           false);
+            case JM_OPCODE_UPDATE_MODULES:
+                if (inst.ctx[0] == '<') dwfl_report_begin(dwfl);
+                else if (inst.ctx[0] == '>')
+                    (void) dwfl_report_end(dwfl, NULL, NULL);
 
-                    break;
+                break;
 
-                case JM_OPCODE_UPDATE_MODULES:
-                    if (inst.ctx[0] == '<') dwfl_report_begin(dwfl);
-                    else if (inst.ctx[0] == '>')
-                        (void) dwfl_report_end(dwfl, NULL, NULL);
+            default:
+                inst.opcode = JM_OPCODE_UNKNOWN;
 
-                    break;
-
-                default:
-                    inst.opcode = JM_OPCODE_UNKNOWN;
-
-                    break;
-            }
+                break;
         }
-
-        fclose(fp);
-
-        dwfl_end(dwfl);
     }
 
-    pthread_mutex_unlock(&dwfl_mutex);
+    dwfl_end(dwfl);
 }

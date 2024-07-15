@@ -27,24 +27,26 @@ $ make && sudo make install
 
 ```
 $ jmprof ~/Workspace/c-lab/bin/c-lab.out
-<===============================================================
-===============================================================>
+jmprof: info: creating a named pipe '/tmp/jmprof-fifo.13888'
+jmprof: info: hijacking `*alloc()` calls via /usr/lib/libjmprof.so
+
+jmprof v0.0.3 by Jaedeok Kim (jdeokkim@protonmail.com)
 
 > /home/jdeokkim/Workspace/c-lab/bin/c-lab.out
 
 SUMMARY: 
-  2 allocs, 1 frees (11368 bytes alloc-ed)
+  2 allocs, 1 frees (4690 bytes alloc-ed)
 
-  ~ alloc #1 (! 446422 ms) -> [11368 bytes]: 
-    @ 0x7f49b5fc69c3: calloc (src/preload.c:159:9)
+  ~ alloc #1 (! 57069 ms) -> [1234 bytes]: 
+    @ 0x7fbd859bd742: malloc (src/preload.c:147:9)
       (in /usr/lib/libjmprof.so)
-    @ 0x559208c6a188: main (src/main.c:13:14)
+    @ 0x5569d5b2215b: main (src/main.c:5:14)
       (in /home/jdeokkim/Workspace/c-lab/bin/c-lab.out)
-    @ 0x7f49b5df4c4c: __libc_start_call_main (../sysdeps/nptl/libc_start_call_main.h:74:3)
+    @ 0x7fbd857edc4c: __libc_start_call_main (../sysdeps/nptl/libc_start_call_main.h:74:3)
       (in /usr/lib/libc.so.6)
-    @ 0x7f49b5df4d05: __libc_start_main@@GLIBC_2.34 (../csu/libc-start.c:128:20)
+    @ 0x7fbd857edd05: __libc_start_main@@GLIBC_2.34 (../csu/libc-start.c:128:20)
       (in /usr/lib/libc.so.6)
-    @ 0x559208c6a091: _start (../sysdeps/x86_64/start.S:117:0)
+    @ 0x5569d5b22081: _start (../sysdeps/x86_64/start.S:117:0)
       (in /home/jdeokkim/Workspace/c-lab/bin/c-lab.out)
 ```
 
