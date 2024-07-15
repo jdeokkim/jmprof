@@ -40,7 +40,7 @@
 /* clang-format off */
 
 #define JMPROF_AUTHOR        "Jaedeok Kim (jdeokkim@protonmail.com)"
-#define JMPROF_VERSION       "0.0.2"
+#define JMPROF_VERSION       "0.0.3-dev"
 
 /* ========================================================================> */
 

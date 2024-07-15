@@ -38,7 +38,7 @@ _COLOR_END = \033[m
 PROJECT_NAME = jmprof
 PROJECT_FULL_NAME = jdeokkim/jmprof
 
-PROJECT_VERSION = "0.0.2"
+PROJECT_VERSION = "0.0.3-dev"
 
 LOG_PREFIX = ${_COLOR_BEGIN}${PROJECT_FULL_NAME}:${_COLOR_END}
 
@@ -64,7 +64,7 @@ PREFIX = ${DESTDIR}/usr
 
 CC = cc
 CFLAGS = -D_DEFAULT_SOURCE -fPIC -g \
-	-I${INCLUDE_PATH} -I${SOURCE_PATH}/external -O2 -std=gnu99
+	-I${INCLUDE_PATH} -I${SOURCE_PATH}/external -O0 -std=gnu99
 LDFLAGS = -pthread -shared
 LDLIBS = -ldw -lelf -lpthread -lunwind
 
@@ -99,10 +99,10 @@ post-build:
 fresh: clean all install
 
 superuser:
-	@if [ "$(shell id -u)" -ne 0 ]; then                       \
+	@if [ "$(shell id -u)" -ne 0 ]; then                   \
 		printf "${LOG_PREFIX} You must be superuser to ";  \
-		printf "install or uninstall this library.\n";         \
-		exit 1;                                                \
+		printf "install or uninstall this library.\n";     \
+		exit 1;                                            \
 	fi
 
 install: superuser

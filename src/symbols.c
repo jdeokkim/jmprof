@@ -25,9 +25,11 @@
 #define _GNU_SOURCE
 
 #include <inttypes.h>
-#include <malloc.h>
 #include <stdio.h>
 #include <string.h>
+
+#include <malloc.h>
+#include <unistd.h>
 
 #include <elfutils/libdwfl.h>
 
@@ -119,8 +121,9 @@ void jm_symbols_summary(const char *path) {
     jm_symbols_parse_log(path);
 
     REENTRANT_PRINTF("jmprof v" JMPROF_VERSION " by " JMPROF_AUTHOR "\n\n"
-                     "> %s\n\n",
-                     summary.exec_path);
+                     "> %s (#%jd)\n\n",
+                     summary.exec_path,
+                     (intmax_t) getpid());
 
     REENTRANT_PRINTF("SUMMARY: \n"
                      "  %d allocs, %d frees (%ld bytes alloc-ed)\n",
@@ -156,6 +159,7 @@ void jm_symbols_summary(const char *path) {
 
             REENTRANT_PRINTF("\n");
         }
+
         /* clang-format off */
 
 /* ========================================================================> */
@@ -222,6 +226,8 @@ static jmBacktrace jm_symbols_build_backtrace(void *ptr) {
 
         bt.mod.offset = mod_addr_start;
 
+        if (mod_name == NULL) mod_name = "??";
+
         (void) strcpy(bt.mod.name, mod_name);
     }
 
@@ -232,6 +238,8 @@ static jmBacktrace jm_symbols_build_backtrace(void *ptr) {
 
         const char *sym_name = dwfl_module_addrinfo(
             mod, bt.addr, &sym_offset, &sym_info, NULL, NULL, NULL);
+
+        if (sym_name == NULL) sym_name = "??";
 
         (void) strcpy(bt.sym.name, sym_name);
     }

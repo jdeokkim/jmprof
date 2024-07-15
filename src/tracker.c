@@ -71,6 +71,12 @@ static void jm_tracker_deinit_(void);
 
 /* ========================================================================> */
 
+static void jm_tracker_atfork_prepare(void);
+static void jm_tracker_atfork_parent(void);
+static void jm_tracker_atfork_child(void);
+
+/* ========================================================================> */
+
 static int
 dl_iterate_phdr_callback(struct dl_phdr_info *info, size_t size, void *data);
 
@@ -102,16 +108,18 @@ void jm_tracker_fprintf(const char *format, ...) {
 
         va_start(args, format);
 
+        uint64_t timestamp = stm_now();
+
         char buffer[MAX_BUFFER_SIZE];
 
         // `<TIMESTAMP> <OPERATION> [...]`
-        int len = REENTRANT_SNPRINTF(NULL, 0, "%" PRIu64 " ", stm_now());
+        int len = REENTRANT_SNPRINTF(NULL, 0, "%" PRIu64 " ", timestamp);
 
         /*
             NOTE: The return value of `snprintf()` is the number of bytes 
             that would be written, not including the null terminator.
         */
-        (void) REENTRANT_SNPRINTF(buffer, len + 1, "%" PRIu64 " ", stm_now());
+        (void) REENTRANT_SNPRINTF(buffer, len + 1, "%" PRIu64 " ", timestamp);
 
         len += REENTRANT_VSNPRINTF(buffer + len,
                                    MAX_BUFFER_SIZE - (len + 1),
@@ -161,18 +169,23 @@ static void jm_tracker_init_(void) {
 
     assert(atexit(jm_tracker_deinit) == 0);
 
+    assert(pthread_atfork(jm_tracker_atfork_prepare,
+                          jm_tracker_atfork_parent,
+                          jm_tracker_atfork_child)
+           == 0);
+
     if (readlink("/proc/self/exe", exec_path, PATH_MAX) == -1)
         REENTRANT_SNPRINTF(exec_path, sizeof "unknown", "unknown");
 
     int len = REENTRANT_SNPRINTF(NULL,
                                  0,
-                                 "jmprof.%s.%jd",
+                                 "/tmp/jmprof.%s.%jd",
                                  basename(exec_path),
                                  (intmax_t) getpid());
 
     (void) REENTRANT_SNPRINTF(log_path,
                               len,
-                              "jmprof.%s.%jd",
+                              "/tmp/jmprof.%s.%jd",
                               basename(exec_path),
                               (intmax_t) getpid());
 
@@ -189,6 +202,20 @@ static void jm_tracker_deinit_(void) {
 
         jm_symbols_summary(log_path);
     }
+}
+
+/* ========================================================================> */
+
+static void jm_tracker_atfork_prepare(void) {
+    // TODO: ...
+}
+
+static void jm_tracker_atfork_parent(void) {
+    // TODO: ...
+}
+
+static void jm_tracker_atfork_child(void) {
+    // TODO: ...
 }
 
 /* ========================================================================> */
