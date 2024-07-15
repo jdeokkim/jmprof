@@ -71,12 +71,6 @@ static void jm_tracker_deinit_(void);
 
 /* ========================================================================> */
 
-static void jm_tracker_atfork_prepare(void);
-static void jm_tracker_atfork_parent(void);
-static void jm_tracker_atfork_child(void);
-
-/* ========================================================================> */
-
 static int
 dl_iterate_phdr_callback(struct dl_phdr_info *info, size_t size, void *data);
 
@@ -165,13 +159,7 @@ static void jm_tracker_init_(void) {
 
     jm_preload_init();
 
-    // (void) atexit(jm_tracker_deinit);
-
-    (void) pthread_atfork(
-        jm_tracker_atfork_prepare,
-        jm_tracker_atfork_parent, 
-        jm_tracker_atfork_child
-    );
+    assert(atexit(jm_tracker_deinit) == 0);
 
     if (readlink("/proc/self/exe", exec_path, PATH_MAX) == -1)
         REENTRANT_SNPRINTF(exec_path, sizeof "unknown", "unknown");
@@ -201,21 +189,6 @@ static void jm_tracker_deinit_(void) {
 
         jm_symbols_summary(log_path);
     }
-}
-
-/* ========================================================================> */
-
-static void jm_tracker_atfork_prepare(void) {
-    // TODO: ...
-}
-
-static void jm_tracker_atfork_parent(void) {
-    // TODO: ...
-    abort();
-}
-
-static void jm_tracker_atfork_child(void) {
-    // TODO: ...
 }
 
 /* ========================================================================> */

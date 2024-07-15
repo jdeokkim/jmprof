@@ -156,10 +156,11 @@ void jm_symbols_summary(const char *path) {
 
             REENTRANT_PRINTF("\n");
         }
+        /* clang-format off */
+
+/* ========================================================================> */
 
         jmAllocEntry *entry = NULL, *temp = NULL;
-
-        /* clang-format off */
 
         HASH_ITER(hh, summary.entries, entry, temp)
             jm_symbols_alloc_delete_entry(entry);

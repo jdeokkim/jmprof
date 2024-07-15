@@ -30,7 +30,7 @@
 
 # ============================================================================>
 
-_COLOR_BEGIN = \033[1;38;5;063m
+_COLOR_BEGIN = \033[1;38;5;208m
 _COLOR_END = \033[m
 
 # ============================================================================>
@@ -38,7 +38,7 @@ _COLOR_END = \033[m
 PROJECT_NAME = jmprof
 PROJECT_FULL_NAME = jdeokkim/jmprof
 
-PROJECT_VERSION = "0.0.2-dev"
+PROJECT_VERSION = "0.0.2"
 
 LOG_PREFIX = ${_COLOR_BEGIN}${PROJECT_FULL_NAME}:${_COLOR_END}
 
