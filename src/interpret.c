@@ -144,10 +144,11 @@ int main(int argc, char *argv[]) {
 
         jmAllocEntry *head = summary.entries;
 
-        for (; head != NULL; head = head->hh.next) {
+        for (int counter = 1; head != NULL; counter++, head = head->hh.next) {
             if (!head->is_leaking) continue;
 
-            printf("  ~ alloc #1 (! %" PRIu64 " ms) -> [%ld bytes]: \n",
+            printf("  ~ alloc #%d (! %" PRIu64 " ms) -> [%ld bytes]: \n",
+                   counter,
                    head->timestamp,
                    head->alloc_size);
 
