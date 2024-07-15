@@ -27,25 +27,6 @@ $ make && sudo make install
 
 ```
 $ jmprof ~/Workspace/c-lab/bin/c-lab.out
-<===============================================================
-===============================================================>
-
-> /home/jdeokkim/Workspace/c-lab/bin/c-lab.out
-
-SUMMARY: 
-  2 allocs, 1 frees (11368 bytes alloc-ed)
-
-  ~ alloc #1 (! 446422 ms) -> [11368 bytes]: 
-    @ 0x7f49b5fc69c3: calloc (src/preload.c:159:9)
-      (in /usr/lib/libjmprof.so)
-    @ 0x559208c6a188: main (src/main.c:13:14)
-      (in /home/jdeokkim/Workspace/c-lab/bin/c-lab.out)
-    @ 0x7f49b5df4c4c: __libc_start_call_main (../sysdeps/nptl/libc_start_call_main.h:74:3)
-      (in /usr/lib/libc.so.6)
-    @ 0x7f49b5df4d05: __libc_start_main@@GLIBC_2.34 (../csu/libc-start.c:128:20)
-      (in /usr/lib/libc.so.6)
-    @ 0x559208c6a091: _start (../sysdeps/x86_64/start.S:117:0)
-      (in /home/jdeokkim/Workspace/c-lab/bin/c-lab.out)
 ```
 
 ## Summary

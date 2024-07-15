@@ -55,7 +55,6 @@ static pthread_mutex_t tracker_fd_mutex = PTHREAD_MUTEX_INITIALIZER;
 /* ========================================================================> */
 
 static char exec_path[PATH_MAX + 1];
-static char log_path[PATH_MAX + 1];
 
 /* ========================================================================> */
 
@@ -177,31 +176,19 @@ static void jm_tracker_init_(void) {
     if (readlink("/proc/self/exe", exec_path, PATH_MAX) == -1)
         REENTRANT_SNPRINTF(exec_path, sizeof "unknown", "unknown");
 
-    int len = REENTRANT_SNPRINTF(NULL,
-                                 0,
-                                 "/tmp/jmprof.%s.%jd",
-                                 basename(exec_path),
-                                 (intmax_t) getpid());
+    const char *fifo_path = getenv("FIFO");
 
-    (void) REENTRANT_SNPRINTF(log_path,
-                              len,
-                              "/tmp/jmprof.%s.%jd",
-                              basename(exec_path),
-                              (intmax_t) getpid());
-
-    tracker_fd = open(log_path, O_CLOEXEC | O_CREAT | O_WRONLY, (mode_t) 0644);
+    tracker_fd = open(fifo_path, O_CLOEXEC | O_CREAT | O_WRONLY, (mode_t) 0644);
 
     jm_tracker_fprintf("%c 0x%jx %s\n", JM_OPCODE_EXEC_PATH, NULL, exec_path);
+
+    assert(tracker_fd > 0);
 }
 
 static void jm_tracker_deinit_(void) {
     jm_preload_deinit();
 
-    if (close(tracker_fd) == 0) {
-        REENTRANT_PRINTF(SEPARATOR_MESSAGE);
-
-        jm_symbols_summary(log_path);
-    }
+    assert(close(tracker_fd) == 0);
 }
 
 /* ========================================================================> */

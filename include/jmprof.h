@@ -40,7 +40,7 @@
 /* clang-format off */
 
 #define JMPROF_AUTHOR        "Jaedeok Kim (jdeokkim@protonmail.com)"
-#define JMPROF_VERSION       "0.0.3-dev"
+#define JMPROF_VERSION       "0.0.3"
 
 /* ========================================================================> */
 
@@ -50,11 +50,6 @@
 #define REENTRANT_VSPRINTF   vsprintf_
 #define REENTRANT_SNPRINTF   snprintf_
 #define REENTRANT_VSNPRINTF  vsnprintf_
-
-/* ========================================================================> */
-
-#define SEPARATOR_MESSAGE \
-    "----------------------------------------------------------------\n\n"
 
 /* ========================================================================> */
 
@@ -86,10 +81,6 @@ void jm_backtrace_unwind(bool is_alloc, const void *ptr, size_t size);
 void jm_preload_init(void);
 void jm_preload_deinit(void);
 
-/* (from src/symbols.c) ===================================================> */
-
-void jm_symbols_summary(const char *path);
-
 /* (from src/tracker.c) ===================================================> */
 
 void jm_tracker_init(void);
@@ -98,5 +89,7 @@ void jm_tracker_deinit(void);
 void jm_tracker_fprintf(const char* format, ...);
 void jm_tracker_set_dirty(bool value);
 void jm_tracker_update_mappings(void);
+
+/* ========================================================================> */
 
 #endif // `JMPROF_H`

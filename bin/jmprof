@@ -27,12 +27,23 @@
 readonly argv_0=$(basename $0);
 readonly argc=$#;
 
+readonly fifo="/tmp/jmprof-fifo.$$";
 readonly preload="libjmprof.so";
 
-readonly version="0.0.3-dev"
-readonly website="https://github.com/jdeokkim/jmprof";
+readonly author="jdeokkim (jdeokkim@protonmail.com)";
+readonly version="0.0.3"
 
 # Function Definitions =======================================================>
+
+# Cleans up temporary files and terminates this program.
+cleanup() {
+    rm -f $fifo;
+}
+
+# Prints a message to the standard output stream.
+log() {
+    printf "jmprof: %s: %s\n" "$1" "$2";
+}
 
 # Shows the 'help' message and terminates this program.
 usage() {
@@ -46,7 +57,7 @@ usage() {
 
 # Displays the version information for this program.
 version() {
-    printf "%s v%s (%s)\n" $argv_0 $version $website;
+    printf "%s v%s by %s\n" $argv_0 $version "$author";
 
     exit 0;
 }
@@ -85,8 +96,22 @@ done
 
 # ============================================================================>
 
-LD_PRELOAD="$(ldconfig -p | grep $preload | awk -F ' ' '{ print $4 }')" $@;
+trap cleanup INT KILL TERM;
 
-# TODO: ...
+log info "creating a named pipe '$fifo'";
+
+mkfifo $fifo;
+
+# ============================================================================>
+
+jmprof-ip $fifo &
+
+# ============================================================================>
+
+ld_preload=$(ldconfig -p | grep $preload | awk -F ' ' '{ print $4 }');
+
+log info "hijacking \`*alloc()\` calls via $ld_preload" && printf "\n";
+
+LD_PRELOAD=$ld_preload FIFO=$fifo $@;
 
 # ============================================================================>

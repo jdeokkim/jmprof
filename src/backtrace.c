@@ -44,10 +44,10 @@ void jm_backtrace_unwind(bool is_alloc, const void *ptr, size_t size) {
 
         void *traces[MAX_BACKTRACE_COUNT];
 
-        int size = unw_backtrace(traces, MAX_BACKTRACE_COUNT);
+        int trace_count = unw_backtrace(traces, MAX_BACKTRACE_COUNT);
 
         // NOTE: `traces[0] => jm_backtrace_unwind(...)`
-        for (int i = 1; i < size; i++)
+        for (int i = 1; i < trace_count; i++)
             jm_tracker_fprintf("b 0x%jx\n", traces[i]);
     }
 
