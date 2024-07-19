@@ -22,6 +22,8 @@
 
 /* Includes ===============================================================> */
 
+#include <malloc.h>
+
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
 
@@ -37,7 +39,9 @@ void jm_backtrace_unwind(bool is_alloc, const void *ptr, size_t size) {
     pthread_mutex_lock(&unwind_mutex);
 
     {
-        jm_tracker_fprintf("%c 0x%jx %jd\n",
+        size = malloc_usable_size((void *) ptr);
+
+        jm_tracker_fprintf("%c 0x%jx %ju\n",
                            (is_alloc ? JM_OPCODE_ALLOC : JM_OPCODE_FREE),
                            (uintptr_t) ptr,
                            size);
