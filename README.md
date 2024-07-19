@@ -73,6 +73,7 @@ SUMMARY:
 
 ## References
 
+- [Bakhvalov, Denis. “Advanced profiling topics. PEBS and LBR.” easyperf.net. June 08, 2018.](https://easyperf.net/blog/2018/06/08/Advanced-profiling-topics-PEBS-and-LBR)
 - [Conrod, Jay. “Understanding Linux `/proc/pid/maps` or `/proc/self/maps`.” stackoverflow.com. September 09, 2009.](https://stackoverflow.com/a/1401595)
 - [Nethercote, Nicholas & Seward, Julian. “How to Shadow Every Byte of Memory Used by a Program.” Third International ACM SIGPLAN/SIGOPS Conference on Virtual Execution Environments, San Diego, California, USA. June 13-15, 2007.](https://valgrind.org/docs/shadow-memory2007.pdf)
 - [Nethercote, Nicholas & Seward, Julian. “Valgrind: A Framework for Heavyweight Dynamic Binary Instrumentation.” ACM SIGPLAN 2007 Conference on Programming Language Design and Implementation, San Diego, California, USA. June 13-15, 2007.](https://valgrind.org/docs/valgrind2007.pdf)

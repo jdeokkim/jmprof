@@ -31,7 +31,7 @@ readonly fifo="/tmp/jmprof-fifo.$$";
 readonly preload="libjmprof.so";
 
 readonly author="jdeokkim (jdeokkim@protonmail.com)";
-readonly version="0.0.5-dev"
+readonly version="0.0.5"
 
 # Function Definitions =======================================================>
 
