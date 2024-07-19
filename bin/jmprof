@@ -37,6 +37,8 @@ readonly version="0.0.5-dev"
 
 # Cleans up temporary files and terminates this program.
 cleanup() {
+    log info "cleaning up";
+
     rm -f $fifo;
 }
 
@@ -54,7 +56,7 @@ panic() {
 
 # Shows the 'help' message and terminates this program.
 usage() {
-    printf "Usage: %s [-h] [-v]\n\n" $argv_0;
+    printf "Usage: %s [-h] [-v] <your-program>\n\n" $argv_0;
 
     printf "    -h  shows this 'help' message and exit\n";
     printf "    -v  displays version information\n";
@@ -101,15 +103,29 @@ while getopts ":hv" opt; do
     esac
 done
 
-# ============================================================================>
-
-if [ ! -e $1 ]; then
-    panic "file '$1' does not exist";
+if [ -z $1 ]; then
+    usage;
 fi
 
 # ============================================================================>
 
-trap cleanup INT KILL TERM;
+argv_1=$1;
+
+if [ ! -f $argv_1 ]; then
+    if ! command -v $1 >/dev/null; then
+        panic "'$argv_1' is not a file";
+    fi
+
+    argv_1=$(command -v $1);
+fi
+
+if [ ! -x $argv_1 ]; then
+    panic "file '$argv_1' is not executable";
+fi
+
+# ============================================================================>
+
+trap cleanup EXIT INT KILL TERM;
 
 log info "creating a named pipe '$fifo'";
 

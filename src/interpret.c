@@ -61,18 +61,23 @@ typedef struct jmAllocEntry_ {
     void *key;
     bool is_leaking;
     size_t alloc_size;
-    size_t trace_count;
     uint64_t timestamp;
-    jmBacktrace traces[MAX_BACKTRACE_COUNT];
+    struct jmBacktraces_ {
+        jmBacktrace buffer[MAX_BACKTRACE_COUNT];
+        size_t count;
+    } traces;
     UT_hash_handle hh;
 } jmAllocEntry;
 
 typedef struct jmSummary_ {
     char path[MAX_BUFFER_SIZE];
-    struct jmSummaryStats_ {
-        int count[2];
-        size_t total;
+    struct jmAllocStats_ {
+        size_t alloc_count, free_count, total;
     } stats;
+    struct jmRegions_ {
+        jmRegion buffer[MAX_REGION_COUNT];
+        size_t count;
+    } regions;
     jmAllocEntry *entries;
 } jmSummary;
 
@@ -135,25 +140,26 @@ int main(int argc, char *argv[]) {
 
     printf("SUMMARY: \n"
            "  %d allocs, %d frees (%ld bytes alloc-ed)\n",
-           summary.stats.count[0],
-           summary.stats.count[1],
+           summary.stats.alloc_count,
+           summary.stats.free_count,
            summary.stats.total);
 
     {
-        if (summary.stats.count[0] > 0) printf("\n");
+        if (summary.stats.alloc_count > 0) printf("\n");
 
         jmAllocEntry *head = summary.entries;
 
         for (int counter = 1; head != NULL; counter++, head = head->hh.next) {
             if (!head->is_leaking) continue;
 
-            printf("  ~ alloc #%d (! %" PRIu64 " ms) -> [%ld bytes]: \n",
+            printf("  ~ alloc #%d (! %" PRIu64 " ms) -> [%ld bytes @ %p]: \n",
                    counter,
                    head->timestamp,
-                   head->alloc_size);
+                   head->alloc_size,
+                   head->key);
 
-            for (int i = 0; i < head->trace_count; i++) {
-                jmBacktrace bt = head->traces[i];
+            for (int i = 0; i < head->traces.count; i++) {
+                jmBacktrace bt = head->traces.buffer[i];
 
                 printf("    @ 0x%jx: %s (%s:%d:%d)\n"
                        "      (in %s)\n",
@@ -219,7 +225,7 @@ static void jm_symbols_alloc_delete_entry(jmAllocEntry *entry) {
 
 static void jm_symbols_alloc_push_backtrace(jmAllocEntry *entry,
                                             jmBacktrace bt) {
-    entry->traces[entry->trace_count++] = bt;
+    entry->traces.buffer[entry->traces.count++] = bt;
 }
 
 /* ========================================================================> */
@@ -309,7 +315,7 @@ static void jm_symbols_parse_log(FILE *fp) {
 
         switch (inst.opcode) {
             case JM_OPCODE_ALLOC:
-                summary.stats.count[0]++;
+                summary.stats.alloc_count++;
                 summary.stats.total += inst.alloc_size;
 
                 alloc_ctx = inst.addr;
@@ -334,7 +340,7 @@ static void jm_symbols_parse_log(FILE *fp) {
                 break;
 
             case JM_OPCODE_FREE:
-                summary.stats.count[1]++;
+                summary.stats.free_count++;
                 summary.stats.total -= inst.alloc_size;
 
                 alloc_ctx = inst.addr;
@@ -350,6 +356,18 @@ static void jm_symbols_parse_log(FILE *fp) {
 
                 (void) dwfl_report_elf(
                     dwfl, inst.ctx, inst.ctx, -1, (GElf_Addr) inst.addr, false);
+
+                break;
+
+            case JM_OPCODE_REGION:
+                summary.regions.buffer[summary.regions.count].start = inst.addr;
+
+                (void)
+                    sscanf(inst.ctx,
+                           "%p",
+                           &summary.regions.buffer[summary.regions.count].end);
+
+                summary.regions.count++;
 
                 break;
 

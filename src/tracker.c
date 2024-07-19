@@ -180,6 +180,15 @@ static void jm_tracker_init_(void) {
 static void jm_tracker_deinit_(void) {
     jm_preload_deinit();
 
+    jmRegion regions[MAX_REGION_COUNT];
+
+    for (int i = 0, j = find_heap_regions(regions, MAX_REGION_COUNT); i < j;
+         i++)
+        jm_tracker_fprintf("%c 0x%jx 0x%jx\n",
+                           JM_OPCODE_REGION,
+                           (uintptr_t) regions[i].start,
+                           (uintptr_t) regions[i].end);
+
     assert(close(tracker_fd) == 0);
 }
 
@@ -221,8 +230,8 @@ static size_t find_heap_regions(jmRegion *regions, size_t size) {
 
         char buffer[MAX_BUFFER_SIZE];
 
-        char addr[MAX_MM_ROW_SIZE], perms[MAX_MM_ROW_SIZE],
-            device[MAX_MM_ROW_SIZE], path[MAX_MM_ROW_SIZE];
+        char addr[MAX_MMAP_ROW_SIZE], perms[MAX_MMAP_ROW_SIZE],
+            device[MAX_MMAP_ROW_SIZE], path[MAX_MMAP_ROW_SIZE];
 
         int ret, offset, inode;
 
@@ -251,7 +260,8 @@ static size_t find_heap_regions(jmRegion *regions, size_t size) {
                 assert(sscanf(addr,
                               "%p-%p",
                               &regions[result].start,
-                              &regions[result].end) == 2);
+                              &regions[result].end)
+                       == 2);
 
                 result++;
             }

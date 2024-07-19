@@ -55,7 +55,8 @@
 
 #define MAX_BACKTRACE_COUNT  32
 #define MAX_BUFFER_SIZE      2048
-#define MAX_MM_ROW_SIZE      256
+#define MAX_MMAP_ROW_SIZE    256
+#define MAX_REGION_COUNT     128
 
 /* clang-format on */
 
@@ -67,6 +68,7 @@ typedef enum jmOpcode_ {
     JM_OPCODE_BACKTRACE      = 'b',
     JM_OPCODE_FREE           = 'f',
     JM_OPCODE_MODULE         = 'm',
+    JM_OPCODE_REGION         = 'r',
     JM_OPCODE_UPDATE_MODULES = 'u',
     JM_OPCODE_EXEC_PATH      = 'x'
 } jmOpcode;
