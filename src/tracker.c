@@ -26,7 +26,7 @@
 
 #include <inttypes.h>
 #include <limits.h>
-#include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -79,6 +79,8 @@ static void jm_tracker_atfork_child(void);
 static int
 dl_iterate_phdr_callback(struct dl_phdr_info *info, size_t size, void *data);
 
+static size_t find_heap_regions(jmRegion *regions, size_t size);
+
 /* Public Functions =======================================================> */
 
 void jm_tracker_init(void) {
@@ -87,14 +89,6 @@ void jm_tracker_init(void) {
 
 void jm_tracker_deinit(void) {
     pthread_once(&tracker_deinit_once, jm_tracker_deinit_);
-}
-
-void jm_tracker_disable(void) {
-    pthread_mutex_lock(&is_disabled_mutex);
-
-    is_disabled = true;
-
-    pthread_mutex_unlock(&is_disabled_mutex);
 }
 
 /* ========================================================================> */
@@ -181,8 +175,6 @@ static void jm_tracker_init_(void) {
     tracker_fd = open(fifo_path, O_CLOEXEC | O_CREAT | O_WRONLY, (mode_t) 0644);
 
     jm_tracker_fprintf("%c 0x%jx %s\n", JM_OPCODE_EXEC_PATH, NULL, exec_path);
-
-    assert(tracker_fd > 0);
 }
 
 static void jm_tracker_deinit_(void) {
@@ -219,4 +211,54 @@ dl_iterate_phdr_callback(struct dl_phdr_info *info, size_t size, void *data) {
                        dlpi_name);
 
     return 0;
+}
+
+static size_t find_heap_regions(jmRegion *regions, size_t size) {
+    size_t result = 0UL;
+
+    {
+        FILE *fp = fopen("/proc/self/maps", "r");
+
+        char buffer[MAX_BUFFER_SIZE];
+
+        char addr[MAX_MM_ROW_SIZE], perms[MAX_MM_ROW_SIZE],
+            device[MAX_MM_ROW_SIZE], path[MAX_MM_ROW_SIZE];
+
+        int ret, offset, inode;
+
+        while (fgets(buffer, sizeof buffer, fp) != NULL) {
+            int ret = sscanf(buffer,
+                             "%s %s %d %s %d %s",
+                             addr,
+                             perms,
+                             &offset,
+                             device,
+                             &inode,
+                             path);
+
+            /*
+                NOTE: Normally, `malloc()` allocates memory from the heap, 
+                and adjusts the size of the heap as required, using `sbrk()`.
+                
+                When allocating blocks of memory larger than `MMAP_THRESHOLD` 
+                bytes, the glibc `malloc()` implementation allocates the memory 
+                as a private anonymous mapping using `mmap()`.
+            */
+
+            if (ret < 5 || strncmp(path, "[heap]", sizeof "[heap]") == 0) {
+                if (result > size) continue;
+
+                assert(sscanf(addr,
+                              "%p-%p",
+                              &regions[result].start,
+                              &regions[result].end) == 2);
+
+                result++;
+            }
+        }
+
+        fclose(fp);
+    }
+
+    return result;
 }

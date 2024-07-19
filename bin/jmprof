@@ -31,7 +31,7 @@ readonly fifo="/tmp/jmprof-fifo.$$";
 readonly preload="libjmprof.so";
 
 readonly author="jdeokkim (jdeokkim@protonmail.com)";
-readonly version="0.0.4"
+readonly version="0.0.5-dev"
 
 # Function Definitions =======================================================>
 
@@ -43,6 +43,13 @@ cleanup() {
 # Prints a message to the standard output stream.
 log() {
     printf "jmprof: %s: %s\n" "$1" "$2";
+}
+
+# Prints an error message and terminates this program.
+panic() {
+    log error "$1";
+
+    exit 1;
 }
 
 # Shows the 'help' message and terminates this program.
@@ -93,6 +100,12 @@ while getopts ":hv" opt; do
             ;;
     esac
 done
+
+# ============================================================================>
+
+if [ ! -e $1 ]; then
+    panic "file '$1' does not exist";
+fi
 
 # ============================================================================>
 

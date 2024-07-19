@@ -40,7 +40,7 @@
 /* clang-format off */
 
 #define JMPROF_AUTHOR        "Jaedeok Kim (jdeokkim@protonmail.com)"
-#define JMPROF_VERSION       "0.0.4"
+#define JMPROF_VERSION       "0.0.5-dev"
 
 /* ========================================================================> */
 
@@ -55,12 +55,13 @@
 
 #define MAX_BACKTRACE_COUNT  32
 #define MAX_BUFFER_SIZE      2048
+#define MAX_MM_ROW_SIZE      256
 
 /* clang-format on */
 
 /* Typedefs ===============================================================> */
 
-typedef enum jmOpcode {
+typedef enum jmOpcode_ {
     JM_OPCODE_UNKNOWN,
     JM_OPCODE_ALLOC          = 'a',
     JM_OPCODE_BACKTRACE      = 'b',
@@ -69,6 +70,10 @@ typedef enum jmOpcode {
     JM_OPCODE_UPDATE_MODULES = 'u',
     JM_OPCODE_EXEC_PATH      = 'x'
 } jmOpcode;
+
+typedef struct jmRegion_ {
+    void *start, *end;
+} jmRegion;
 
 /* Public Function Prototypes =============================================> */
 
