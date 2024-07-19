@@ -160,10 +160,21 @@ void *realloc(void *ptr, size_t new_size) {
 
         jm_tracker_update_mappings();
 
-        if ((ptr != NULL) && (new_size == 0))
-            jm_backtrace_unwind(false, result, new_size);
-        else
-            jm_backtrace_unwind(true, result, new_size);
+        /*
+            NOTE: The description of `realloc()` has been modified from
+            previous versions of this standard to align with the
+            ISO/IEC 9899:1999 standard. Previous versions explicitly
+            permitted a call to `realloc(ptr, 0)` to free the space
+            pointed to by `ptr` and return a null pointer.
+
+            While this behavior could be interpreted as permitted by
+            this version of the standard, the C language committee have
+            indicated that this interpretation is incorrect.
+        */
+
+        bool may_free = ((ptr != NULL) && (new_size == 0));
+
+        jm_backtrace_unwind(!may_free, result, new_size);
 
         pthread_setspecific(realloc_key, NULL);
     }
