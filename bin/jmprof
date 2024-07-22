@@ -31,7 +31,15 @@ readonly fifo="/tmp/jmprof-fifo.$$";
 readonly preload="libjmprof.so";
 
 readonly author="jdeokkim (jdeokkim@protonmail.com)";
-readonly version="0.0.5"
+readonly version="0.0.6"
+
+readonly sep_start="
+<==============================================================================
+";
+
+readonly sep_end="
+==============================================================================>
+";
 
 # Function Definitions =======================================================>
 
@@ -135,12 +143,14 @@ mkfifo $fifo;
 
 ld_preload=$(ldconfig -p | grep $preload | awk -F ' ' '{ print $4 }');
 
-log info "hijacking \`*alloc()\` calls via $ld_preload" && printf "\n";
+log info "intercepting \`*alloc()\` calls via $ld_preload"; 
+
+printf "$sep_start\n";
 
 LD_PRELOAD=$ld_preload FIFO=$fifo $@ &
 
 # ============================================================================>
 
-jmprof-ip $fifo;
+jmprof-ip $fifo $sep_end;
 
 # ============================================================================>

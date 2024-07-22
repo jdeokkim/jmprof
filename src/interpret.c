@@ -134,7 +134,9 @@ int main(int argc, char *argv[]) {
 
     jm_symbols_parse_log(fp);
 
-    printf("jmprof v" JMPROF_VERSION " by " JMPROF_AUTHOR "\n\n"
+    if (argv[2] != NULL) printf("\n%s\n", argv[2]);
+
+    printf("\njmprof v" JMPROF_VERSION " by " JMPROF_AUTHOR "\n\n"
            "> %s\n\n",
            summary.path);
 
