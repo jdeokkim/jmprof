@@ -26,28 +26,60 @@ $ make && sudo make install
 ## Example
 
 ```
-$ jmprof ~/Workspace/c-lab/bin/c-lab.out
-jmprof: info: creating a named pipe '/tmp/jmprof-fifo.13888'
-jmprof: info: hijacking `*alloc()` calls via /usr/lib/libjmprof.so
+$ jmprof uname -a
+jmprof: info: creating a named pipe '/tmp/jmprof-fifo.7086'
+jmprof: info: intercepting `*alloc()` calls via /usr/lib/libjmprof.so
 
-jmprof v0.0.3 by Jaedeok Kim (jdeokkim@protonmail.com)
+<==============================================================================
 
-> /home/jdeokkim/Workspace/c-lab/bin/c-lab.out
+Linux void-dgist 6.6.40_1 #1 SMP PREEMPT_DYNAMIC Mon Jul 15 20:29:49 UTC 2024 x86_64 GNU/Linux
+
+==============================================================================>
+
+jmprof v0.0.6-dev by Jaedeok Kim (jdeokkim@protonmail.com)
+
+> /usr/bin/uname
 
 SUMMARY: 
-  2 allocs, 1 frees (4690 bytes alloc-ed)
+  30 allocs, 2 frees (8592 bytes alloc-ed)
 
-  ~ alloc #1 (! 57069 ms) -> [1234 bytes]: 
-    @ 0x7fbd859bd742: malloc (src/preload.c:147:9)
+  ~ alloc #2 (! 519242 ms) -> [120 bytes @ 0x55b6c00102c0]: 
+    @ 0x7fd55d7517a6: malloc (src/preload.c:147:9)
       (in /usr/lib/libjmprof.so)
-    @ 0x5569d5b2215b: main (src/main.c:5:14)
-      (in /home/jdeokkim/Workspace/c-lab/bin/c-lab.out)
-    @ 0x7fbd857edc4c: __libc_start_call_main (../sysdeps/nptl/libc_start_call_main.h:74:3)
+    @ 0x7fd55d58d9c4: _nl_load_locale_from_archive (./locale/loadarchive.c:460:9)
       (in /usr/lib/libc.so.6)
-    @ 0x7fbd857edd05: __libc_start_main@@GLIBC_2.34 (../csu/libc-start.c:128:20)
+    @ 0x7fd55d58cf47: _nl_find_locale (./locale/findlocale.c:153:10)
       (in /usr/lib/libc.so.6)
-    @ 0x5569d5b22081: _start (../sysdeps/x86_64/start.S:117:0)
-      (in /home/jdeokkim/Workspace/c-lab/bin/c-lab.out)
+    @ 0x7fd55d58f8d7: setlocale (./locale/setlocale.c:337:24)
+      (in /usr/lib/libc.so.6)
+    @ 0x55b6bf36c38d: ?? (:0:0)
+      (in /usr/bin/uname)
+    @ 0x7fd55d581c4c: __libc_start_call_main (../sysdeps/nptl/libc_start_call_main.h:74:3)
+      (in /usr/lib/libc.so.6)
+    @ 0x7fd55d581d05: __libc_start_main@@GLIBC_2.34 (../csu/libc-start.c:128:20)
+      (in /usr/lib/libc.so.6)
+    @ 0x55b6bf36c751: ?? (:0:0)
+      (in /usr/bin/uname)
+
+(...)
+
+  ~ alloc #29 (! 851615 ms) -> [24 bytes @ 0x55b6c00114d0]: 
+    @ 0x7fd55d7517a6: malloc (src/preload.c:147:9)
+      (in /usr/lib/libjmprof.so)
+    @ 0x7fd55d5fa7fa: __strdup (./string/strdup.c:44:6)
+      (in /usr/lib/libc.so.6)
+    @ 0x7fd55d594488: textdomain (./intl/textdomain.c:94:20)
+      (in /usr/lib/libc.so.6)
+    @ 0x55b6bf36c3a4: ?? (:0:0)
+      (in /usr/bin/uname)
+    @ 0x7fd55d581c4c: __libc_start_call_main (../sysdeps/nptl/libc_start_call_main.h:74:3)
+      (in /usr/lib/libc.so.6)
+    @ 0x7fd55d581d05: __libc_start_main@@GLIBC_2.34 (../csu/libc-start.c:128:20)
+      (in /usr/lib/libc.so.6)
+    @ 0x55b6bf36c751: ?? (:0:0)
+      (in /usr/bin/uname)
+
+jmprof: info: cleaning up
 ```
 
 ## Summary
