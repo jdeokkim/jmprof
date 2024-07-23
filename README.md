@@ -9,12 +9,15 @@ A tiny, experimental heap profiler for GNU/Linux.
 - GNU coreutils version 8.3+
 - GNU Make version 4.2+
 - elfutils-dev(el) version 0.190+
+- libpfm4-dev(el) version 4.13.0+
 - libunwind-dev(el) version 1.8.1+
 
 <!-- - libsanitizer-devel 13.2.0+ -->
 
+### Void Linux
+
 ```console
-$ sudo xbps-install base-devel elfutils-devel libunwind-devel
+$ sudo xbps-install base-devel elfutils-devel libpfm4-devel libunwind-devel
 ```
 
 ## Building
@@ -106,8 +109,8 @@ jmprof: info: cleaning up
 ## References
 
 - [Bakhvalov, Denis. “Advanced profiling topics. PEBS and LBR.” easyperf.net. June 08, 2018.](https://easyperf.net/blog/2018/06/08/Advanced-profiling-topics-PEBS-and-LBR)
+- [Brais, Hadi. “An Introduction to the Cache Hit and Miss Performance Monitoring Events.” hadibrais.wordpress.com. March 26, 2019.](https://hadibrais.wordpress.com/2019/03/26/an-introduction-to-the-cache-hit-and-miss-performance-monitoring-events/)
 - [Conrod, Jay. “Understanding Linux `/proc/pid/maps` or `/proc/self/maps`.” stackoverflow.com. September 09, 2009.](https://stackoverflow.com/a/1401595)
-- [Nethercote, Nicholas & Seward, Julian. “How to Shadow Every Byte of Memory Used by a Program.” Third International ACM SIGPLAN/SIGOPS Conference on Virtual Execution Environments, San Diego, California, USA. June 13-15, 2007.](https://valgrind.org/docs/shadow-memory2007.pdf)
 - [Nethercote, Nicholas & Seward, Julian. “Valgrind: A Framework for Heavyweight Dynamic Binary Instrumentation.” ACM SIGPLAN 2007 Conference on Programming Language Design and Implementation, San Diego, California, USA. June 13-15, 2007.](https://valgrind.org/docs/valgrind2007.pdf)
 - [Picard, Romain. “`LD_PRELOAD` for real world heap access tracking.” blog.oakbits.com. April 11, 2012.](https://blog.oakbits.com/ld_preload-for-real-world-heap-access-tracking.html)
 - [Wolff, Milian. “How to Write a Heap Profiler.” CppCon 2019, Aurora, Colorado, USA. September 15-20, 2019.](https://github.com/milianw/how-to-write-a-memory-profiler)

@@ -38,7 +38,7 @@ _COLOR_END = \033[m
 PROJECT_NAME = jmprof
 PROJECT_FULL_NAME = jdeokkim/jmprof
 
-PROJECT_VERSION = "0.0.6"
+PROJECT_VERSION = "0.0.7-dev"
 
 LOG_PREFIX = ${_COLOR_BEGIN}${PROJECT_FULL_NAME}:${_COLOR_END}
 
@@ -58,6 +58,7 @@ OBJECTS_B1 = \
 
 OBJECTS_L1= \
 	${SOURCE_PATH}/backtrace.o  \
+	${SOURCE_PATH}/perfmon.o    \
 	${SOURCE_PATH}/preload.o    \
 	${SOURCE_PATH}/printf.o     \
 	${SOURCE_PATH}/tracker.o
@@ -77,7 +78,7 @@ LDFLAGS_B1 =
 LDFLAGS_L1 = -pthread -shared
 
 LDLIBS_B1 = -ldw -lelf
-LDLIBS_L1 = -lpthread -lunwind
+LDLIBS_L1 = -lpfm -lpthread -lunwind
 
 # ============================================================================>
 

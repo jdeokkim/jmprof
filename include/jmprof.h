@@ -40,7 +40,7 @@
 /* clang-format off */
 
 #define JMPROF_AUTHOR        "Jaedeok Kim (jdeokkim@protonmail.com)"
-#define JMPROF_VERSION       "0.0.6"
+#define JMPROF_VERSION       "0.0.7-dev"
 
 /* ========================================================================> */
 
@@ -55,7 +55,8 @@
 
 #define MAX_BACKTRACE_COUNT  32
 #define MAX_BUFFER_SIZE      2048
-#define MAX_MMAP_ROW_SIZE    256
+#define MAX_MMAP_ROW_SIZE    512
+#define MAX_PMU_COUNT        256
 #define MAX_REGION_COUNT     128
 
 /* clang-format on */
@@ -82,6 +83,10 @@ typedef struct jmRegion_ {
 /* (from src/backtrace.c) =================================================> */
 
 void jm_backtrace_unwind(bool is_alloc, const void *ptr, size_t size);
+
+/* (from src/perfmon.c) ===================================================> */
+
+// TODO: ...
 
 /* (from src/preload.c) ===================================================> */
 
