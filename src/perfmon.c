@@ -40,13 +40,12 @@
 
 static pthread_once_t perfmon_pfm_init_once = PTHREAD_ONCE_INIT;
 
-// static pfm_pmu_t pmu_list[MAX_PMU_COUNT];
-
-// static int pmu_list_top;
-
 /* Private Function Prototypes ============================================> */
 
 static void jm_perfmon_pfm_init(void);
+
+static void jm_perfmon_get_event_attr(const char *str,
+                                      struct perf_event_attr *attr);
 
 /* Public Functions =======================================================> */
 
@@ -57,32 +56,25 @@ int jm_perfmon_open(void) {
         NOTE: The following is the list of the event names with unit masks
         that we need for `perf_event_open()`:
 
-        - `MEM_LOAD_RETIRED:L3_MISS`
+        - `MEM_LOAD_RETIRED:L3_MISS:u`
             => "Retired load instructions missed L3 cache as data sources"
 
-        - `MEM_INST_RETIRED:ALL_STORES`
+        - `MEM_INST_RETIRED:ALL_STORES:u`
             => "All retired store instructions."
 
-        - `MEM_INST_RETIRED:ALL_LOADS`
+        - `MEM_INST_RETIRED:ALL_LOADS:u`
             => "All retired load instructions."
+
+        - `MEM_LOAD_L3_MISS_RETIRED:LOCAL_DRAM:u`
+            => "Retired load instructions which data sources missed 
+                L3 but serviced from local DRAM."
     */
 
-    const char *event_str = "MEM_LOAD_RETIRED:L3_MISS";
+    struct perf_event_attr hw_event;
 
-    // NOTE: `hw_event` must be zero-initialized, except for the `size` field
-    struct perf_event_attr hw_event = { .size = sizeof(hw_event) };
-
-    pfm_perf_encode_arg_t arg = { .attr = &hw_event,
-                                  .size = sizeof(pfm_perf_encode_arg_t) };
-
-    pfm_err_t ret = pfm_get_os_event_encoding(event_str,
-                                              PFM_PLM0 | PFM_PLM3,
-                                              PFM_OS_PERF_EVENT_EXT,
-                                              &arg);
-
-    if (ret != PFM_SUCCESS) return -1;
-
-    assert(hw_event.type == PERF_TYPE_RAW);
+    // NOTE: "[pmu_name::]event_name[:unit_mask][:modifier|:modifier=val]"
+    jm_perfmon_get_event_attr("MEM_LOAD_RETIRED:L3_MISS:u",
+                              &hw_event);
 
     /*
         NOTE: glibc provides no wrapper for `perf_event_open()`,
@@ -118,24 +110,37 @@ int jm_perfmon_close(int fd) {
 /* Private Functions ======================================================> */
 
 static void jm_perfmon_pfm_init(void) {
-    pfm_err_t ret = pfm_initialize();
+    (void) pfm_initialize();
+}
 
-    // NOTE: no active PMUs found?
-    if (ret != PFM_SUCCESS) return;
+static void jm_perfmon_get_event_attr(const char *str,
+                                      struct perf_event_attr *attr) {
+    if (str == NULL || attr == NULL) return;
+
+    attr->type = PERF_TYPE_MAX;
+
+    // NOTE: `hw_event` must be zero-initialized, except for the `size` field
+    struct perf_event_attr hw_event = {
+        .size = sizeof(hw_event),
+        .exclude_kernel = 1,
+        .exclude_callchain_kernel = 1,
+        .read_format = PERF_FORMAT_TOTAL_TIME_RUNNING
+    };
+
+    pfm_perf_encode_arg_t arg = { .attr = &hw_event,
+                                  .size = sizeof(pfm_perf_encode_arg_t) };
 
     /*
-        pfm_pmu_t pmu;
-
-        pfm_pmu_info_t pmu_info = { .name = NULL };
-
-        pfm_for_all_pmus(pmu) {
-            ret = pfm_get_pmu_info(pmu, &pmu_info);
-
-            if (ret != PFM_SUCCESS || !pmu_info.is_present) continue;
-
-            pmu_list[pmu_list_top++] = pmu;
-        }
-
-        assert(pmu_list_top > 0);
+        NOTE: `PFM_PLM0` is not needed since we only need to 
+        inspect user-space (unprivileged, ring 3) events
     */
+
+    pfm_err_t ret = pfm_get_os_event_encoding(str,
+                                              PFM_PLM3,
+                                              PFM_OS_PERF_EVENT_EXT,
+                                              &arg);
+
+    if (ret != PFM_SUCCESS) return;
+
+    *attr = hw_event;
 }
