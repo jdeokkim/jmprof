@@ -36,9 +36,47 @@
 
 #include "jmprof.h"
 
+/* Typedefs ===============================================================> */
+
+typedef struct jmEventCounter_ {
+    int fd;
+    uint64_t id;
+    char name[MAX_BUFFER_SIZE];
+} jmEventCounter;
+
 /* Private Variables ======================================================> */
 
 static pthread_once_t perfmon_pfm_init_once = PTHREAD_ONCE_INIT;
+
+/* ========================================================================> */
+
+static pthread_mutex_t counters_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/* ========================================================================> */
+
+/*
+    NOTE: The following is the list of the event names with unit masks
+    that we need for `perf_event_open()`:
+
+    - `MEM_LOAD_RETIRED:L3_MISS:u`
+        => "Retired load instructions missed L3 cache as data sources"
+
+    - `MEM_INST_RETIRED:ALL_STORES:u`
+        => "All retired store instructions."
+
+    - `MEM_INST_RETIRED:ALL_LOADS:u`
+        => "All retired load instructions."
+
+    - `MEM_LOAD_L3_MISS_RETIRED:LOCAL_DRAM:u`
+        => "Retired load instructions which data sources missed 
+            L3 but serviced from local DRAM."
+*/
+
+static jmEventCounter counters[] = {
+    { .fd = -1, .name = "MEM_LOAD_RETIRED:L3_MISS:u" },
+    { .fd = -1, .name = "MEM_INST_RETIRED:ALL_STORES:u" },
+    { .fd = -1, .name = "MEM_INST_RETIRED:ALL_LOADS:u" },
+};
 
 /* Private Function Prototypes ============================================> */
 
@@ -49,62 +87,64 @@ static void jm_perfmon_get_event_attr(const char *str,
 
 /* Public Functions =======================================================> */
 
-int jm_perfmon_open(void) {
+bool jm_perfmon_init(void) {
     pthread_once(&perfmon_pfm_init_once, jm_perfmon_pfm_init);
 
-    /*
-        NOTE: The following is the list of the event names with unit masks
-        that we need for `perf_event_open()`:
+    pthread_mutex_lock(&counters_mutex);
 
-        - `MEM_LOAD_RETIRED:L3_MISS:u`
-            => "Retired load instructions missed L3 cache as data sources"
+    {
+        for (int i = 0, j = (sizeof counters / sizeof *counters); i < j; i++) {
+            struct perf_event_attr hw_event;
 
-        - `MEM_INST_RETIRED:ALL_STORES:u`
-            => "All retired store instructions."
+            // NOTE: "[pmu_name::]event_name[:unit_mask][:modifier|:modifier=val]"
+            jm_perfmon_get_event_attr(counters[i].name, &hw_event);
 
-        - `MEM_INST_RETIRED:ALL_LOADS:u`
-            => "All retired load instructions."
+            /*
+                NOTE: glibc provides no wrapper for `perf_event_open()`,
+                necessitating the use of `syscall()`.
+            */
 
-        - `MEM_LOAD_L3_MISS_RETIRED:LOCAL_DRAM:u`
-            => "Retired load instructions which data sources missed 
-                L3 but serviced from local DRAM."
-    */
+            int group_fd = (i > 0) ? counters[0].fd : -1;
 
-    struct perf_event_attr hw_event;
+            counters[i]
+                .fd = syscall(SYS_perf_event_open,
+                              &hw_event,  // `struct perf_event_attr *hw_event`
+                              0,          // `pid_t pid`
+                              -1,         // `int cpu`
+                              group_fd,   // `int group_fd`
+                              PERF_FLAG_FD_CLOEXEC  // `unsigned long flags`
+            );
 
-    // NOTE: "[pmu_name::]event_name[:unit_mask][:modifier|:modifier=val]"
-    jm_perfmon_get_event_attr("MEM_LOAD_RETIRED:L3_MISS:u",
-                              &hw_event);
+            if (counters[i].fd < 0) return false;
 
-    /*
-        NOTE: glibc provides no wrapper for `perf_event_open()`,
-        necessitating the use of `syscall()`.
-    */
+            (void) ioctl(counters[i].fd, PERF_EVENT_IOC_ID, &counters[i].id);
+        }
 
-    int fd = syscall(SYS_perf_event_open,
-                     &hw_event,            // `struct perf_event_attr *hw_event`
-                     0,                    // `pid_t pid`
-                     -1,                   // `int cpu`
-                     -1,                   // `int group_fd`
-                     PERF_FLAG_FD_CLOEXEC  // `unsigned long flags`
-    );
+        int leader_fd = counters[0].fd;
 
-    if (fd > 0) {
-        (void) ioctl(fd, PERF_EVENT_IOC_RESET, 0);
-        (void) ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
+        (void) ioctl(leader_fd, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
+        (void) ioctl(leader_fd, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
     }
 
-    return fd;
+    pthread_mutex_unlock(&counters_mutex);
+
+    return true;
 }
 
-int jm_perfmon_close(int fd) {
-    if (fcntl(fd, F_GETFD) < 0) return -1;
-
+bool jm_perfmon_deinit(void) {
     pfm_terminate();
 
-    (void) ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
+    for (int i = 0, j = (sizeof counters / sizeof *counters); i < j; i++) {
+        if (fcntl(counters[i].fd, F_GETFD) < 0) continue;
 
-    return close(fd);
+        (void) ioctl(counters[i].fd,
+                     PERF_EVENT_IOC_DISABLE,
+                     PERF_IOC_FLAG_GROUP);
+
+        if (close(counters[i].fd) < 0) return false;
+    }
+
+    return true;
 }
 
 /* Private Functions ======================================================> */
@@ -124,7 +164,8 @@ static void jm_perfmon_get_event_attr(const char *str,
         .size = sizeof(hw_event),
         .exclude_kernel = 1,
         .exclude_callchain_kernel = 1,
-        .read_format = PERF_FORMAT_TOTAL_TIME_RUNNING
+        .read_format = PERF_FORMAT_TOTAL_TIME_RUNNING | PERF_FORMAT_ID
+                       | PERF_FORMAT_GROUP
     };
 
     pfm_perf_encode_arg_t arg = { .attr = &hw_event,

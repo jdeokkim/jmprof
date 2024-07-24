@@ -86,7 +86,8 @@ void jm_backtrace_unwind(bool is_alloc, const void *ptr, size_t size);
 
 /* (from src/perfmon.c) ===================================================> */
 
-// TODO: ...
+bool jm_perfmon_init(void);
+bool jm_perfmon_deinit(void);
 
 /* (from src/preload.c) ===================================================> */
 
