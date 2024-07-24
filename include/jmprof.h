@@ -55,9 +55,9 @@
 
 #define MAX_BACKTRACE_COUNT  32
 #define MAX_BUFFER_SIZE      2048
-#define MAX_MMAP_ROW_SIZE    512
-#define MAX_PMU_COUNT        256
 #define MAX_REGION_COUNT     128
+
+#define MMAP_ROW_SIZE        512
 
 /* clang-format on */
 

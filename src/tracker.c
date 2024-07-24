@@ -230,8 +230,8 @@ static size_t find_heap_regions(jmRegion *regions, size_t size) {
 
         char buffer[MAX_BUFFER_SIZE];
 
-        char addr[MAX_MMAP_ROW_SIZE], perms[MAX_MMAP_ROW_SIZE],
-            device[MAX_MMAP_ROW_SIZE], path[MAX_MMAP_ROW_SIZE];
+        char addr[MMAP_ROW_SIZE], perms[MMAP_ROW_SIZE],
+            device[MMAP_ROW_SIZE], path[MMAP_ROW_SIZE];
 
         int ret, offset, inode;
 
