@@ -44,6 +44,27 @@ typedef struct jmEventCounter_ {
     char name[MAX_BUFFER_SIZE];
 } jmEventCounter;
 
+/*
+    NOTE: If a struct defines at least one named member, it is allowed to 
+    additionally declare its last member with incomplete array type. 
+    
+    When an element of the flexible array member is accessed (in an 
+    expression that uses operator `.` or `->` with the flexible array member's
+    name as the right-hand-side operand), then the struct behaves as if 
+    the array member had the longest size fitting in the memory allocated 
+    for this object. (since C99)
+
+    - https://en.cppreference.com/w/c/language/struct
+*/
+
+typedef struct jmEventReadFormat_ {
+    uint64_t event_count;
+    uint64_t time_running;
+    struct {
+        uint64_t value, id;
+    } events[];
+} jmEventReadFormat;
+
 /* Private Variables ======================================================> */
 
 static pthread_once_t perfmon_pfm_init_once = PTHREAD_ONCE_INIT;
@@ -54,28 +75,9 @@ static pthread_mutex_t counters_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* ========================================================================> */
 
-/*
-    NOTE: The following is the list of the event names with unit masks
-    that we need for `perf_event_open()`:
-
-    - `MEM_LOAD_RETIRED:L3_MISS:u`
-        => "Retired load instructions missed L3 cache as data sources"
-
-    - `MEM_INST_RETIRED:ALL_STORES:u`
-        => "All retired store instructions."
-
-    - `MEM_INST_RETIRED:ALL_LOADS:u`
-        => "All retired load instructions."
-
-    - `MEM_LOAD_L3_MISS_RETIRED:LOCAL_DRAM:u`
-        => "Retired load instructions which data sources missed 
-            L3 but serviced from local DRAM."
-*/
-
 static jmEventCounter counters[] = {
+    { .fd = -1, .name = "LLC_MISSES:u" },
     { .fd = -1, .name = "MEM_LOAD_RETIRED:L3_MISS:u" },
-    { .fd = -1, .name = "MEM_INST_RETIRED:ALL_STORES:u" },
-    { .fd = -1, .name = "MEM_INST_RETIRED:ALL_LOADS:u" },
 };
 
 /* Private Function Prototypes ============================================> */
@@ -120,10 +122,17 @@ bool jm_perfmon_init(void) {
             (void) ioctl(counters[i].fd, PERF_EVENT_IOC_ID, &counters[i].id);
         }
 
-        int leader_fd = counters[0].fd;
+        /* clang-format off */
 
-        (void) ioctl(leader_fd, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
-        (void) ioctl(leader_fd, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
+        (void) ioctl(counters[0].fd, 
+                     PERF_EVENT_IOC_RESET, 
+                     PERF_IOC_FLAG_GROUP);
+
+        (void) ioctl(counters[0].fd,
+                     PERF_EVENT_IOC_ENABLE,
+                     PERF_IOC_FLAG_GROUP);
+
+        /* clang-format on */
     }
 
     pthread_mutex_unlock(&counters_mutex);
@@ -147,6 +156,22 @@ bool jm_perfmon_deinit(void) {
     return true;
 }
 
+void jm_perfmon_read_events(void) {
+    pthread_mutex_lock(&counters_mutex);
+
+    {
+        uint8_t buffer[MAX_BUFFER_SIZE];
+
+        jmEventReadFormat *rf = (jmEventReadFormat *) buffer;
+
+        read(counters[0].fd, buffer, sizeof buffer);
+
+        // TODO: ...
+    }
+
+    pthread_mutex_unlock(&counters_mutex);
+}
+
 /* Private Functions ======================================================> */
 
 static void jm_perfmon_pfm_init(void) {
@@ -162,10 +187,11 @@ static void jm_perfmon_get_event_attr(const char *str,
     // NOTE: `hw_event` must be zero-initialized, except for the `size` field
     struct perf_event_attr hw_event = {
         .size = sizeof(hw_event),
-        .exclude_kernel = 1,
-        .exclude_callchain_kernel = 1,
-        .read_format = PERF_FORMAT_TOTAL_TIME_RUNNING | PERF_FORMAT_ID
-                       | PERF_FORMAT_GROUP
+        .sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_TIME | PERF_SAMPLE_ADDR
+                       | PERF_SAMPLE_WEIGHT | PERF_SAMPLE_PHYS_ADDR,
+        .read_format = PERF_FORMAT_ID | PERF_FORMAT_GROUP,
+        .exclude_hv = 1,
+        .exclude_kernel = 1
     };
 
     pfm_perf_encode_arg_t arg = { .attr = &hw_event,
