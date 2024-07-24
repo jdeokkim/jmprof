@@ -28,6 +28,7 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include <fcntl.h>
@@ -35,7 +36,6 @@
 #include <link.h>
 #include <unistd.h>
 
-#define SOKOL_TIME_IMPL
 #include "sokol_time.h"
 
 #include "jmprof.h"
@@ -83,11 +83,11 @@ static size_t find_heap_regions(jmRegion *regions, size_t size);
 
 /* Public Functions =======================================================> */
 
-void jm_tracker_init(void) {
+/* __attribute__((constructor)) */ void jm_tracker_init(void) {
     pthread_once(&tracker_init_once, jm_tracker_init_);
 }
 
-void jm_tracker_deinit(void) {
+/* __attribute__((destructor)) */ void jm_tracker_deinit(void) {
     pthread_once(&tracker_deinit_once, jm_tracker_deinit_);
 }
 
@@ -143,11 +143,7 @@ void jm_tracker_update_mappings(void) {
 
         is_dirty = false;
 
-        jm_tracker_fprintf("%c 0x%jx <\n", JM_OPCODE_UPDATE_MODULES, NULL);
-
-        dl_iterate_phdr(dl_iterate_phdr_callback, NULL);
-
-        jm_tracker_fprintf("%c 0x%jx >\n", JM_OPCODE_UPDATE_MODULES, NULL);
+        (void) dl_iterate_phdr(dl_iterate_phdr_callback, NULL);
     }
 
     pthread_mutex_unlock(&is_dirty_mutex);
@@ -156,17 +152,6 @@ void jm_tracker_update_mappings(void) {
 /* Private Functions ======================================================> */
 
 static void jm_tracker_init_(void) {
-    stm_setup();
-
-    jm_preload_init();
-
-    assert(atexit(jm_tracker_deinit) == 0);
-
-    assert(pthread_atfork(jm_tracker_atfork_prepare,
-                          jm_tracker_atfork_parent,
-                          jm_tracker_atfork_child)
-           == 0);
-
     if (readlink("/proc/self/exe", exec_path, PATH_MAX) == -1)
         REENTRANT_SNPRINTF(exec_path, sizeof "unknown", "unknown");
 
@@ -178,7 +163,7 @@ static void jm_tracker_init_(void) {
 }
 
 static void jm_tracker_deinit_(void) {
-    jm_preload_deinit();
+    if (tracker_fd < 0) return;
 
     jmRegion regions[MAX_REGION_COUNT];
 
@@ -190,20 +175,6 @@ static void jm_tracker_deinit_(void) {
                            (uintptr_t) regions[i].end);
 
     assert(close(tracker_fd) == 0);
-}
-
-/* ========================================================================> */
-
-static void jm_tracker_atfork_prepare(void) {
-    // TODO: ...
-}
-
-static void jm_tracker_atfork_parent(void) {
-    // TODO: ...
-}
-
-static void jm_tracker_atfork_child(void) {
-    // TODO: ...
 }
 
 /* ========================================================================> */
