@@ -30,6 +30,9 @@
 #include <dlfcn.h>
 #include <unistd.h>
 
+#define SOKOL_TIME_IMPL
+#include "sokol_time.h"
+
 #include "jmprof.h"
 
 /* Typedefs ===============================================================> */
@@ -82,6 +85,12 @@ static void jm_preload_deinit_(void);
 
 /* ========================================================================> */
 
+static void jm_preload_atfork_prepare(void);
+static void jm_preload_atfork_parent(void);
+static void jm_preload_atfork_child(void);
+
+/* ========================================================================> */
+
 static void jm_preload_calloc_init(void);
 static void jm_preload_calloc_deinit(void);
 
@@ -106,18 +115,24 @@ static void jm_preload_dlclose_deinit(void);
 
 /* Public Functions =======================================================> */
 
+__attribute__((constructor))
 void jm_preload_init(void) {
     pthread_once(&preload_init_once, jm_preload_init_);
+
+    jm_tracker_init();
 }
 
+__attribute__((destructor))
 void jm_preload_deinit(void) {
     pthread_once(&preload_deinit_once, jm_preload_deinit_);
+
+    jm_tracker_deinit();
 }
 
 /* ========================================================================> */
 
 void *calloc(size_t num, size_t size) {
-    if (libc_calloc == NULL) jm_tracker_init();
+    if (libc_calloc == NULL) jm_preload_init();
 
     void *result = libc_calloc(num, size);
 
@@ -134,7 +149,7 @@ void *calloc(size_t num, size_t size) {
 }
 
 void *malloc(size_t size) {
-    if (libc_malloc == NULL) jm_tracker_init();
+    if (libc_malloc == NULL) jm_preload_init();
 
     void *result = libc_malloc(size);
 
@@ -151,7 +166,7 @@ void *malloc(size_t size) {
 }
 
 void *realloc(void *ptr, size_t new_size) {
-    if (libc_realloc == NULL) jm_tracker_init();
+    if (libc_realloc == NULL) jm_preload_init();
 
     void *result = libc_realloc(ptr, new_size);
     
@@ -183,7 +198,7 @@ void *realloc(void *ptr, size_t new_size) {
 }
 
 void free(void *ptr) {
-    if (libc_free == NULL) jm_tracker_init();
+    if (libc_free == NULL) jm_preload_init();
 
     if (is_initialized && (pthread_getspecific(free_key) == NULL)) {
         pthread_setspecific(free_key, &free_key);
@@ -199,7 +214,7 @@ void free(void *ptr) {
 /* ========================================================================> */
 
 void *dlopen(const char *file, int mode) {
-    if (libc_dlopen == NULL) jm_tracker_init();
+    if (libc_dlopen == NULL) jm_preload_init();
 
     void *result = libc_dlopen(file, mode);
 
@@ -209,7 +224,7 @@ void *dlopen(const char *file, int mode) {
 }
 
 int dlclose(void *handle) {
-    if (libc_dlclose == NULL) jm_tracker_init();
+    if (libc_dlclose == NULL) jm_preload_init();
 
     int result = libc_dlclose(handle);
 
@@ -221,12 +236,19 @@ int dlclose(void *handle) {
 /* ========================================================================> */
 
 PRINTF_VISIBILITY void putchar_(char c) {
-    write(1, &c, 1);
+    write(STDOUT_FILENO, &c, sizeof c);
 }
 
 /* Private Functions =====================================================> */
 
 static void jm_preload_init_(void) {
+    stm_setup();
+
+    assert(pthread_atfork(jm_preload_atfork_prepare,
+                          jm_preload_atfork_parent,
+                          jm_preload_atfork_child)
+           == 0);
+
     jm_preload_calloc_init();
     jm_preload_malloc_init();
     jm_preload_realloc_init();
@@ -239,6 +261,8 @@ static void jm_preload_init_(void) {
     unsetenv("LD_PRELOAD");
 
     is_initialized = true;
+
+    assert(atexit(jm_preload_deinit) == 0);
 }
 
 static void jm_preload_deinit_(void) {
@@ -252,6 +276,21 @@ static void jm_preload_deinit_(void) {
     jm_preload_dlclose_deinit();
 
     is_initialized = false;
+}
+
+
+/* ========================================================================> */
+
+static void jm_preload_atfork_prepare(void) {
+    is_initialized = false;
+}
+
+static void jm_preload_atfork_parent(void) {
+    is_initialized = true;
+}
+
+static void jm_preload_atfork_child(void) {
+    jm_preload_deinit();
 }
 
 /* ========================================================================> */

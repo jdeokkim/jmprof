@@ -40,7 +40,7 @@
 /* clang-format off */
 
 #define JMPROF_AUTHOR        "Jaedeok Kim (jdeokkim@protonmail.com)"
-#define JMPROF_VERSION       "0.0.6"
+#define JMPROF_VERSION       "0.0.7"
 
 /* ========================================================================> */
 
@@ -55,8 +55,9 @@
 
 #define MAX_BACKTRACE_COUNT  32
 #define MAX_BUFFER_SIZE      2048
-#define MAX_MMAP_ROW_SIZE    256
 #define MAX_REGION_COUNT     128
+
+#define MMAP_ROW_SIZE        512
 
 /* clang-format on */
 

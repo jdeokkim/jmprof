@@ -25,6 +25,7 @@
 #define _GNU_SOURCE
 
 #include <inttypes.h>
+#include <string.h>
 
 #include <elfutils/libdwfl.h>
 
@@ -141,14 +142,12 @@ int main(int argc, char *argv[]) {
            summary.path);
 
     printf("SUMMARY: \n"
-           "  %d allocs, %d frees (%ld bytes alloc-ed)\n",
+           "  %d allocs, %d frees (%ld bytes alloc-ed)\n\n",
            summary.stats.alloc_count,
            summary.stats.free_count,
            summary.stats.total);
 
     {
-        if (summary.stats.alloc_count > 0) printf("\n");
-
         jmAllocEntry *head = summary.entries;
 
         for (int counter = 1; head != NULL; counter++, head = head->hh.next) {
@@ -352,12 +351,16 @@ static void jm_symbols_parse_log(FILE *fp) {
                 break;
 
             case JM_OPCODE_MODULE:
-                if (strncmp(inst.ctx, "linux-vdso.so", sizeof "linux-vdso.so")
+                if (strncmp(inst.ctx, "linux-vdso.so", strlen("linux-vdso.so"))
                     == 0)
                     continue;
 
-                (void) dwfl_report_elf(
+                dwfl_report_begin_add(dwfl);
+
+                Dwfl_Module *mod = dwfl_report_elf(
                     dwfl, inst.ctx, inst.ctx, -1, (GElf_Addr) inst.addr, false);
+
+                (void) dwfl_report_end(dwfl, NULL, NULL);
 
                 break;
 
@@ -370,13 +373,6 @@ static void jm_symbols_parse_log(FILE *fp) {
                            &summary.regions.buffer[summary.regions.count].end);
 
                 summary.regions.count++;
-
-                break;
-
-            case JM_OPCODE_UPDATE_MODULES:
-                if (inst.ctx[0] == '<') dwfl_report_begin(dwfl);
-                else if (inst.ctx[0] == '>')
-                    (void) dwfl_report_end(dwfl, NULL, NULL);
 
                 break;
 
