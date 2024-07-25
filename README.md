@@ -114,6 +114,7 @@ jmprof: info: cleaning up
 - [Nethercote, Nicholas & Seward, Julian. “Valgrind: A Framework for Heavyweight Dynamic Binary Instrumentation.” ACM SIGPLAN 2007 Conference on Programming Language Design and Implementation, San Diego, California, USA. June 13-15, 2007.](https://valgrind.org/docs/valgrind2007.pdf)
 - [Picard, Romain. “`LD_PRELOAD` for real world heap access tracking.” blog.oakbits.com. April 11, 2012.](https://blog.oakbits.com/ld_preload-for-real-world-heap-access-tracking.html)
 - [Wolff, Milian. “How to Write a Heap Profiler.” CppCon 2019, Aurora, Colorado, USA. September 15-20, 2019.](https://github.com/milianw/how-to-write-a-memory-profiler)
+- [Yan, Leo. “Diving into Linux Perf Ring Buffer.” linaro.org. May 25, 2021.](https://people.linaro.org/~leo.yan/debug/perf/Diving_into_Linux_Perf_Ring_Buffer.pdf)
 
 ## License
 

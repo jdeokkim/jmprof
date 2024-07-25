@@ -57,7 +57,7 @@
 #define MAX_BUFFER_SIZE      2048
 #define MAX_REGION_COUNT     128
 
-#define MMAP_ROW_SIZE        512
+#define MMAP_PAGE_COUNT      (1 + (1 << 8))
 
 /* clang-format on */
 

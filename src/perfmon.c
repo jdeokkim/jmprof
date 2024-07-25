@@ -47,30 +47,10 @@
 
 typedef struct jmEventCounter_ {
     int fd;
+    void *rb;
     uint64_t id;
     char name[MAX_BUFFER_SIZE];
 } jmEventCounter;
-
-/*
-    NOTE: If a struct defines at least one named member, it is allowed to 
-    additionally declare its last member with incomplete array type. 
-    
-    When an element of the flexible array member is accessed (in an 
-    expression that uses operator `.` or `->` with the flexible array member's
-    name as the right-hand-side operand), then the struct behaves as if 
-    the array member had the longest size fitting in the memory allocated 
-    for this object. (since C99)
-
-    - https://en.cppreference.com/w/c/language/struct
-*/
-
-typedef struct jmEventReadFormat_ {
-    uint64_t event_count;
-    uint64_t time_running;
-    struct {
-        uint64_t value, id;
-    } events[];
-} jmEventReadFormat;
 
 /* Private Variables ======================================================> */
 
@@ -102,15 +82,13 @@ int main(int argc, char *argv[]) {
         for (char *c = buffer; *c != '\0' && (*c = tolower(*c)); ++c)
             ;
 
-        fprintf(stderr,
-                "%s: error: jm_perfmon_init(): %s\n",
-                argv[0],
-                buffer);
+        fprintf(stderr, "%s: error: jm_perfmon_init(): %s\n", argv[0], buffer);
 
         return 1;
     }
 
-    for (;;) jm_perfmon_read_events();
+    for (;;)
+        jm_perfmon_read_events();
 
     return 0;
 }
@@ -131,6 +109,8 @@ static bool jm_perfmon_init(void) {
     signal(SIGINT, jm_perfmon_signal_handler);
     signal(SIGTERM, jm_perfmon_signal_handler);
     signal(SIGQUIT, jm_perfmon_signal_handler);
+
+    /* ========================================================================> */
 
     (void) pfm_initialize();
 
@@ -161,6 +141,30 @@ static bool jm_perfmon_init(void) {
         (void) ioctl(counters[i].fd, PERF_EVENT_IOC_ID, &counters[i].id);
     }
 
+    /* ========================================================================> */
+
+    /* 
+        NOTE: When using `perf_event_open()` in sampled mode, asynchronous 
+        events (like counter overflow or `PROT_EXEC` mmap tracking) are
+        logged into a ring-buffer. This ring-buffer is created and accessed 
+        through `mmap()`.
+       
+        The mmap size should be `1+2^n` pages, where the first page 
+        is a metadata page (`struct perf_event_mmap_page`) that contains 
+        various bits of information such as where the ring-buffer head is.
+    */
+
+    counters[0].rb = mmap(NULL,
+                          MMAP_PAGE_COUNT * sysconf(_SC_PAGESIZE),
+                          PROT_READ | PROT_WRITE,
+                          MAP_SHARED,
+                          counters[0].fd,
+                          0);
+
+    if (counters[0].rb == NULL) return false;
+
+    /* ========================================================================> */
+
     /* clang-format off */
 
     (void) ioctl(counters[0].fd, 
@@ -173,6 +177,8 @@ static bool jm_perfmon_init(void) {
 
     /* clang-format on */
 
+    /* ========================================================================> */
+
     sigprocmask(SIG_SETMASK, &old_set, NULL);
 
     return true;
@@ -180,6 +186,9 @@ static bool jm_perfmon_init(void) {
 
 static bool jm_perfmon_deinit(void) {
     pfm_terminate();
+
+    if (munmap(counters[0].rb, MMAP_PAGE_COUNT * sysconf(_SC_PAGESIZE)) < 0)
+        return false;
 
     for (int i = 0, j = (sizeof counters / sizeof *counters); i < j; i++) {
         if (fcntl(counters[i].fd, F_GETFD) < 0) continue;
@@ -205,6 +214,9 @@ static void jm_perfmon_read_events(void) {
         A sampling event periodically writes measurements to a buffer 
         that can then be accessed via `mmap()`.
     */
+
+    struct perf_event_mmap_page *metadata =
+        (struct perf_event_mmap_page *) counters[0].rb;
 
     // TODO: ...
 }

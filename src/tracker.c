@@ -199,10 +199,9 @@ static size_t find_heap_regions(jmRegion *regions, size_t size) {
     {
         FILE *fp = fopen("/proc/self/maps", "r");
 
-        char buffer[MAX_BUFFER_SIZE];
-
-        char addr[MMAP_ROW_SIZE], perms[MMAP_ROW_SIZE],
-            device[MMAP_ROW_SIZE], path[MMAP_ROW_SIZE];
+        char buffer[MAX_BUFFER_SIZE], addr[MAX_BUFFER_SIZE],
+            perms[MAX_BUFFER_SIZE], device[MAX_BUFFER_SIZE],
+            path[MAX_BUFFER_SIZE];
 
         int ret, offset, inode;
 
