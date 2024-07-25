@@ -31,7 +31,7 @@ readonly fifo="/tmp/jmprof-fifo.$$";
 readonly preload="libjmprof.so";
 
 readonly author="jdeokkim (jdeokkim@protonmail.com)";
-readonly version="0.0.7"
+readonly version="0.0.8-dev"
 
 readonly sep_start="
 <==============================================================================
@@ -141,11 +141,29 @@ mkfifo $fifo;
 
 # ============================================================================>
 
+pm_pid=
+
+if [ "$(id -u)" -eq 0 ]; then
+    log info "running as root, enabling PMU event counters";
+
+    jmprof-pm &
+
+    pm_pid=$!;
+fi
+
+# ============================================================================>
+
 ld_preload=$(ldconfig -p | grep $preload | awk -F ' ' '{ print $4 }');
 
 log info "intercepting \`*alloc()\` calls via $ld_preload";
 
 printf "$sep_start\n"; LD_PRELOAD=$ld_preload FIFO=$fifo $@ &
+
+# ============================================================================>
+
+if [ -n "$pm_pid" ]; then
+    kill -INT $pm_pid;
+fi
 
 # ============================================================================>
 

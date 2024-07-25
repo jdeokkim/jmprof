@@ -26,6 +26,8 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <signal.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <fcntl.h>
@@ -87,6 +89,8 @@ static void jm_perfmon_read_events(void);
 static void jm_perfmon_get_event_attr(const char *str,
                                       struct perf_event_attr *attr);
 
+static void jm_perfmon_signal_handler(int sig);
+
 /* Public Functions =======================================================> */
 
 int main(int argc, char *argv[]) {
@@ -106,11 +110,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    {
-        // TODO: ...
-    }
-
-    (void) jm_perfmon_deinit();
+    for (;;) jm_perfmon_read_events();
 
     return 0;
 }
@@ -118,6 +118,20 @@ int main(int argc, char *argv[]) {
 /* Private Functions ======================================================> */
 
 static bool jm_perfmon_init(void) {
+    sigset_t sig_mask, old_set;
+
+    sigemptyset(&sig_mask), sigemptyset(&old_set);
+
+    sigaddset(&sig_mask, SIGINT);
+    sigaddset(&sig_mask, SIGTERM);
+    sigaddset(&sig_mask, SIGQUIT);
+
+    sigprocmask(SIG_BLOCK, &sig_mask, &old_set);
+
+    signal(SIGINT, jm_perfmon_signal_handler);
+    signal(SIGTERM, jm_perfmon_signal_handler);
+    signal(SIGQUIT, jm_perfmon_signal_handler);
+
     (void) pfm_initialize();
 
     for (int i = 0, j = (sizeof counters / sizeof *counters); i < j; i++) {
@@ -158,6 +172,8 @@ static bool jm_perfmon_init(void) {
                     PERF_IOC_FLAG_GROUP);
 
     /* clang-format on */
+
+    sigprocmask(SIG_SETMASK, &old_set, NULL);
 
     return true;
 }
@@ -225,4 +241,10 @@ static void jm_perfmon_get_event_attr(const char *str,
     if (ret != PFM_SUCCESS) return;
 
     *attr = hw_event;
+}
+
+static void jm_perfmon_signal_handler(int sig) {
+    (void) jm_perfmon_deinit();
+
+    exit(0);
 }
