@@ -85,6 +85,12 @@ static void jm_preload_deinit_(void);
 
 /* ========================================================================> */
 
+static void jm_preload_atfork_prepare(void);
+static void jm_preload_atfork_parent(void);
+static void jm_preload_atfork_child(void);
+
+/* ========================================================================> */
+
 static void jm_preload_calloc_init(void);
 static void jm_preload_calloc_deinit(void);
 
@@ -109,12 +115,14 @@ static void jm_preload_dlclose_deinit(void);
 
 /* Public Functions =======================================================> */
 
+__attribute__((constructor))
 void jm_preload_init(void) {
     pthread_once(&preload_init_once, jm_preload_init_);
 
     jm_tracker_init();
 }
 
+__attribute__((destructor))
 void jm_preload_deinit(void) {
     pthread_once(&preload_deinit_once, jm_preload_deinit_);
 
@@ -236,6 +244,11 @@ PRINTF_VISIBILITY void putchar_(char c) {
 static void jm_preload_init_(void) {
     stm_setup();
 
+    assert(pthread_atfork(jm_preload_atfork_prepare,
+                          jm_preload_atfork_parent,
+                          jm_preload_atfork_child)
+           == 0);
+
     jm_preload_calloc_init();
     jm_preload_malloc_init();
     jm_preload_realloc_init();
@@ -263,6 +276,21 @@ static void jm_preload_deinit_(void) {
     jm_preload_dlclose_deinit();
 
     is_initialized = false;
+}
+
+
+/* ========================================================================> */
+
+static void jm_preload_atfork_prepare(void) {
+    is_initialized = false;
+}
+
+static void jm_preload_atfork_parent(void) {
+    is_initialized = true;
+}
+
+static void jm_preload_atfork_child(void) {
+    jm_preload_deinit();
 }
 
 /* ========================================================================> */

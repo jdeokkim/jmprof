@@ -83,11 +83,11 @@ static size_t find_heap_regions(jmRegion *regions, size_t size);
 
 /* Public Functions =======================================================> */
 
-/* __attribute__((constructor)) */ void jm_tracker_init(void) {
+void jm_tracker_init(void) {
     pthread_once(&tracker_init_once, jm_tracker_init_);
 }
 
-/* __attribute__((destructor)) */ void jm_tracker_deinit(void) {
+void jm_tracker_deinit(void) {
     pthread_once(&tracker_deinit_once, jm_tracker_deinit_);
 }
 

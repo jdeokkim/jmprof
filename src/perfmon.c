@@ -24,10 +24,15 @@
 
 #define _GNU_SOURCE
 
+#include <ctype.h>
+#include <errno.h>
+#include <string.h>
+
 #include <fcntl.h>
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
@@ -67,14 +72,6 @@ typedef struct jmEventReadFormat_ {
 
 /* Private Variables ======================================================> */
 
-static pthread_once_t perfmon_pfm_init_once = PTHREAD_ONCE_INIT;
-
-/* ========================================================================> */
-
-static pthread_mutex_t counters_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-/* ========================================================================> */
-
 static jmEventCounter counters[] = {
     { .fd = -1, .name = "LLC_MISSES:u" },
     { .fd = -1, .name = "MEM_LOAD_RETIRED:L3_MISS:u" },
@@ -82,65 +79,90 @@ static jmEventCounter counters[] = {
 
 /* Private Function Prototypes ============================================> */
 
-static void jm_perfmon_pfm_init(void);
+static bool jm_perfmon_init(void);
+static bool jm_perfmon_deinit(void);
+
+static void jm_perfmon_read_events(void);
 
 static void jm_perfmon_get_event_attr(const char *str,
                                       struct perf_event_attr *attr);
 
 /* Public Functions =======================================================> */
 
-bool jm_perfmon_init(void) {
-    pthread_once(&perfmon_pfm_init_once, jm_perfmon_pfm_init);
+int main(int argc, char *argv[]) {
+    if (!jm_perfmon_init()) {
+        char buffer[MAX_BUFFER_SIZE] = "";
 
-    pthread_mutex_lock(&counters_mutex);
+        (void) strncpy(buffer, strerror(errno), MAX_BUFFER_SIZE - 1);
 
-    {
-        for (int i = 0, j = (sizeof counters / sizeof *counters); i < j; i++) {
-            struct perf_event_attr hw_event;
+        for (char *c = buffer; *c != '\0' && (*c = tolower(*c)); ++c)
+            ;
 
-            // NOTE: "[pmu_name::]event_name[:unit_mask][:modifier|:modifier=val]"
-            jm_perfmon_get_event_attr(counters[i].name, &hw_event);
+        fprintf(stderr,
+                "%s: error: jm_perfmon_init(): %s\n",
+                argv[0],
+                buffer);
 
-            /*
-                NOTE: glibc provides no wrapper for `perf_event_open()`,
-                necessitating the use of `syscall()`.
-            */
-
-            int group_fd = (i > 0) ? counters[0].fd : -1;
-
-            counters[i]
-                .fd = syscall(SYS_perf_event_open,
-                              &hw_event,  // `struct perf_event_attr *hw_event`
-                              0,          // `pid_t pid`
-                              -1,         // `int cpu`
-                              group_fd,   // `int group_fd`
-                              PERF_FLAG_FD_CLOEXEC  // `unsigned long flags`
-            );
-
-            if (counters[i].fd < 0) return false;
-
-            (void) ioctl(counters[i].fd, PERF_EVENT_IOC_ID, &counters[i].id);
-        }
-
-        /* clang-format off */
-
-        (void) ioctl(counters[0].fd, 
-                     PERF_EVENT_IOC_RESET, 
-                     PERF_IOC_FLAG_GROUP);
-
-        (void) ioctl(counters[0].fd,
-                     PERF_EVENT_IOC_ENABLE,
-                     PERF_IOC_FLAG_GROUP);
-
-        /* clang-format on */
+        return 1;
     }
 
-    pthread_mutex_unlock(&counters_mutex);
+    {
+        // TODO: ...
+    }
+
+    (void) jm_perfmon_deinit();
+
+    return 0;
+}
+
+/* Private Functions ======================================================> */
+
+static bool jm_perfmon_init(void) {
+    (void) pfm_initialize();
+
+    for (int i = 0, j = (sizeof counters / sizeof *counters); i < j; i++) {
+        struct perf_event_attr hw_event;
+
+        // NOTE: "[pmu_name::]event_name[:unit_mask][:modifier|:modifier=val]"
+        jm_perfmon_get_event_attr(counters[i].name, &hw_event);
+
+        /*
+            NOTE: glibc provides no wrapper for `perf_event_open()`,
+            necessitating the use of `syscall()`.
+        */
+
+        int group_fd = (i > 0) ? counters[0].fd : -1;
+
+        counters[i]
+            .fd = syscall(SYS_perf_event_open,
+                          &hw_event,  // `struct perf_event_attr *hw_event`
+                          0,          // `pid_t pid`
+                          -1,         // `int cpu`
+                          group_fd,   // `int group_fd`
+                          PERF_FLAG_FD_CLOEXEC  // `unsigned long flags`
+        );
+
+        if (counters[i].fd < 0) return false;
+
+        (void) ioctl(counters[i].fd, PERF_EVENT_IOC_ID, &counters[i].id);
+    }
+
+    /* clang-format off */
+
+    (void) ioctl(counters[0].fd, 
+                    PERF_EVENT_IOC_RESET, 
+                    PERF_IOC_FLAG_GROUP);
+
+    (void) ioctl(counters[0].fd,
+                    PERF_EVENT_IOC_ENABLE,
+                    PERF_IOC_FLAG_GROUP);
+
+    /* clang-format on */
 
     return true;
 }
 
-bool jm_perfmon_deinit(void) {
+static bool jm_perfmon_deinit(void) {
     pfm_terminate();
 
     for (int i = 0, j = (sizeof counters / sizeof *counters); i < j; i++) {
@@ -156,26 +178,19 @@ bool jm_perfmon_deinit(void) {
     return true;
 }
 
-void jm_perfmon_read_events(void) {
-    pthread_mutex_lock(&counters_mutex);
+static void jm_perfmon_read_events(void) {
+    /*
+        NOTE: Events come in two flavors: counting and sampled. 
+        
+        A counting event is one that is used for counting the aggregate 
+        number of events that occur. In general, counting event results are
+        gathered with a `read()` call.  
+        
+        A sampling event periodically writes measurements to a buffer 
+        that can then be accessed via `mmap()`.
+    */
 
-    {
-        uint8_t buffer[MAX_BUFFER_SIZE];
-
-        jmEventReadFormat *rf = (jmEventReadFormat *) buffer;
-
-        read(counters[0].fd, buffer, sizeof buffer);
-
-        // TODO: ...
-    }
-
-    pthread_mutex_unlock(&counters_mutex);
-}
-
-/* Private Functions ======================================================> */
-
-static void jm_perfmon_pfm_init(void) {
-    (void) pfm_initialize();
+    // TODO: ...
 }
 
 static void jm_perfmon_get_event_attr(const char *str,

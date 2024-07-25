@@ -40,7 +40,7 @@
 /* clang-format off */
 
 #define JMPROF_AUTHOR        "Jaedeok Kim (jdeokkim@protonmail.com)"
-#define JMPROF_VERSION       "0.0.7-dev"
+#define JMPROF_VERSION       "0.0.7"
 
 /* ========================================================================> */
 
@@ -83,11 +83,6 @@ typedef struct jmRegion_ {
 /* (from src/backtrace.c) =================================================> */
 
 void jm_backtrace_unwind(bool is_alloc, const void *ptr, size_t size);
-
-/* (from src/perfmon.c) ===================================================> */
-
-bool jm_perfmon_init(void);
-bool jm_perfmon_deinit(void);
 
 /* (from src/preload.c) ===================================================> */
 

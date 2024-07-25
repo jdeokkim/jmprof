@@ -142,14 +142,12 @@ int main(int argc, char *argv[]) {
            summary.path);
 
     printf("SUMMARY: \n"
-           "  %d allocs, %d frees (%ld bytes alloc-ed)\n",
+           "  %d allocs, %d frees (%ld bytes alloc-ed)\n\n",
            summary.stats.alloc_count,
            summary.stats.free_count,
            summary.stats.total);
 
     {
-        if (summary.stats.alloc_count > 0) printf("\n");
-
         jmAllocEntry *head = summary.entries;
 
         for (int counter = 1; head != NULL; counter++, head = head->hh.next) {
